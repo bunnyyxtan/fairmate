@@ -1,0 +1,64 @@
+{
+  "phase": "anchoring \u2014 per-move chain commitments",
+  "network": "testnet",
+  "chainId": 16602,
+  "journalAddress": "0x799Ba17BcA561708DbA774cb127f4B23CA529804",
+  "journalExplorer": "https://chainscan-galileo.0g.ai/address/0x799Ba17BcA561708DbA774cb127f4B23CA529804",
+  "deployTx": "0xf714b2cd9d34a3efd5cd2c537386584d30e051f25282bae955c1fa26fc411c6e",
+  "gameId": "0x9dd57b264a3bf016dcd520bcfdab7ffcff4786a96720ed0066f5429d75aba0e3",
+  "startTx": "0x354aff0059222d6d85ed7fa1be33a6f9e1d45310690abcc731880669cc5668ef",
+  "commitTxs": [
+    {
+      "ply": 1,
+      "san": "e4",
+      "tx": "0x7628d74d53e862f696c2bf50165cccf1db3d9e9eda7663563e9258b8ba9b3e98"
+    },
+    {
+      "ply": 2,
+      "san": "Nc6",
+      "tx": "0x2b25fb0a750d85963e09dde1844903c45728e3d7a3b9fd0cf536847696759cab"
+    },
+    {
+      "ply": 3,
+      "san": "Na3",
+      "tx": "0xaf5537006aac53a6a9021881aee949f12d8cebf25fd608ffc6efdb79975265cd"
+    },
+    {
+      "ply": 4,
+      "san": "Nh6",
+      "tx": "0x99209a175008a88867d45dd99238145b3662d5cc84ae7bfd482c341611ed7b3f"
+    },
+    {
+      "ply": 5,
+      "san": "Nc4",
+      "tx": "0x49392ed7750dedd10f5949f68230de8d100fd5cc80e9244b83db13103581a562"
+    },
+    {
+      "ply": 6,
+      "san": "Nb4",
+      "tx": "0xc2f87d1294d486e4d1c17807c774a0325aaa5cd3f07be340a10aa9a1eca04884"
+    },
+    {
+      "ply": 7,
+      "san": "Na3",
+      "tx": "0xdd3fcc4258142baca54603aa9e04d88de41a6b8659b0077b09d93341442c97fc"
+    },
+    {
+      "ply": 8,
+      "san": "Nf5",
+      "tx": "0x430d35198ad4350e22e131bc6a2560f79c2ce16df3e24f53d77b2d4a8cb74913"
+    },
+    {
+      "ply": 9,
+      "san": "Nc4",
+      "tx": "0xa53cef486fe54b5a8a4a604d4b4ffb1194f0f56e29605e84927832d85482d849"
+    },
+    {
+      "ply": 10,
+      "san": "Nd6",
+      "tx": "0x07463a8e347163f938417f1781eb40a743f53b02cdebebf7d82c3e44e8cbcc50"
+    }
+  ],
+  "onChainMoveCount": 10,
+  "finishedAt": "2026-08-22T15:42:37.632Z"
+}

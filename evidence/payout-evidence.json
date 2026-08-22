@@ -1,0 +1,16 @@
+{
+  "phase": "payout \u2014 funded challenge pot",
+  "network": "testnet",
+  "chainId": 16602,
+  "potAddress": "0x9564D6550c1EB0E62fB57018F9aEB98fe0dcbf19",
+  "potExplorer": "https://chainscan-galileo.0g.ai/address/0x9564D6550c1EB0E62fB57018F9aEB98fe0dcbf19",
+  "deployTx": "0x1115ba8dd7103eb9f0862e04a635fb445410a7302035fa0929163c8d50528faf",
+  "fundTx": "0xfb40ea9c3e7fe6c0868f07fd1a9daf545f9d72cecedcfdd8c30a56540a11dd20",
+  "configureTx": "0x2fd10b87b76b0197795c5726d5c279a8f02d44f3d04e1039a915700bd7e84694",
+  "awardTx": "0x239052b4b0df4c7892f73f4496bcf29977a850a3510eb8c1ab1253f980552f3d",
+  "winner": "0xe49Fa45519Cc4E288b2C0f5F62B48f462A4F77D5",
+  "winnerBalanceDeltaOg": "0.005",
+  "doubleAwardReverted": true,
+  "pass": true,
+  "finishedAt": "2026-08-22T14:41:37.422Z"
+}

@@ -1,6 +1,6 @@
 import { allChecksPass, verifyReceiptBundle, type ReceiptCheck } from "@shared/receipt";
 import type { GameState, PlyRecord } from "@shared/protocol";
-import { Check, Copy, ShieldCheck, TriangleAlert, X } from "lucide-react";
+import { Check, Copy, ShieldCheck, TriangleAlert, X, ExternalLink } from "lucide-react";
 import { useMemo, useState } from "react";
 import { explorerUrl } from "./api";
 
@@ -67,7 +67,7 @@ export function ReceiptPanel({ game }: { game: GameState }) {
         )}
         {ply.chain.txHash && (
           <a className="text-link" href={explorerUrl(game.chain.explorer, "tx", ply.chain.txHash)} target="_blank" rel="noreferrer">
-            Inspect move transaction ↗
+            Inspect move transaction <ExternalLink size={12} />
           </a>
         )}
       </div>

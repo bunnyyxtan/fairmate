@@ -1,59 +1,59 @@
-/**
- * The referee — game lifecycle, move validation, attested model moves, and
- * the on-chain journal/pot writes. In-memory store (games are short-lived;
- * permanence lives on-chain + in downloadable evidence bundles).
- *
- * Honesty invariants:
- *  - the model NEVER gets a fabricated fallback move; if it cannot produce a
- *    legal move within bounded retries the game is ABORTED as a fault.
- *  - every model ply carries the full receipt bundle; the client re-verifies
- *    it in the browser (shared/receipt.ts) rather than trusting this server.
- */
 import { Chess } from "chess.js";
 import { ethers } from "ethers";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { canonicalHash } from "../shared/canonical";
 import { computeReceiptHash } from "../shared/receipt";
-import type {
-  GameResult,
-  GameState,
-  PlyRecord,
-  ReceiptBundle,
-  TxRef,
-} from "../shared/protocol";
+import type { GameState, PlyRecord, ReceiptBundle } from "../shared/protocol";
 import { CHESS_SYSTEM_PROMPT, buildMoveUserPrompt, parseMove } from "../src/chess-agent";
 import { completion, getComputeState } from "./compute-service";
 import {
-  RESULT_ENUM,
-  awardPrecheck,
+  broadcastRawTransaction,
   chainInfo,
-  enqueueTx,
-  journal,
-  pot,
+  prepareTransaction,
+  readAward,
+  readJournalGame,
   readPot,
+  transactionReceipt,
 } from "./chain";
-import { createClock, startTurn, stopClock, tickClock } from "./game-clock";
+import {
+  FairmateStore,
+  newAction,
+  type Queryable,
+  type StoredGame,
+} from "./fairmate-store";
+import { createClock, stopClock, tickClock } from "./game-clock";
+import {
+  applyPly,
+  chessFor,
+  planEnd,
+  voidPendingAward,
+} from "./referee-state";
+import { DurableOutbox } from "./durable-outbox";
+import { verifyJournalState } from "./journal-verifier";
 
 const MAX_ACTIVE_GAMES = Number(process.env.FAIRMATE_MAX_ACTIVE_GAMES ?? 3);
 const MAX_GAMES_PER_IP_PER_DAY = Number(process.env.FAIRMATE_MAX_GAMES_PER_IP_PER_DAY ?? 5);
 const MAX_GAMES_GLOBAL_PER_DAY = Number(process.env.FAIRMATE_MAX_GAMES_GLOBAL_PER_DAY ?? 12);
-const MAX_STORED_GAMES = 200;
 const MODEL_MOVE_ATTEMPTS = 2;
 const MODEL_TEMPERATURE = 0.2;
 const IDLE_ABORT_MS = Number(process.env.FAIRMATE_IDLE_ABORT_MS ?? 10 * 60 * 1000);
 const GAME_CLOCK_MS = Number(process.env.FAIRMATE_CLOCK_MS ?? 5 * 60 * 1000);
+const INFERENCE_LEASE_MS = 5 * 60 * 1000;
+const START_FEN = new Chess().fen();
+const store = new FairmateStore();
+const outbox = new DurableOutbox(store, {
+  prepare: prepareTransaction,
+  receipt: transactionReceipt,
+  broadcast: broadcastRawTransaction,
+  award: readAward,
+  perWinBountyOg: async () => (await readPot()).perWinBountyOg,
+});
+let reconciled = false;
 
-interface Game {
-  state: GameState;
-  chess: Chess;
-  ip: string;
-  accessTokenHash: Buffer;
-  /** true while a model move is being computed (re-entrancy guard) */
-  thinking: boolean;
-  /** serializes player move and resignation mutations */
-  mutating: boolean;
-  /** true only while a model ply is awaiting its chain confirmation */
-  committing: boolean;
+function background(label: string, promise: Promise<unknown>): void {
+  void promise.catch((error) => {
+    console.error(`[referee] background ${label} failed: ${error instanceof Error ? error.message : String(error)}`);
+  });
 }
 
 export interface CreatedGame {
@@ -61,127 +61,104 @@ export interface CreatedGame {
   accessToken: string;
 }
 
-const games = new Map<string, Game>();
-const ipDaily = new Map<string, { day: string; count: number }>();
-let globalDaily = { day: today(), count: 0 };
+export class RefereeError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+  }
+}
+
+/** Raised only when the journal and local state definitively disagree. */
+class ReconcileMismatch extends Error {}
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function activeCount(): number {
-  let c = 0;
-  for (const g of games.values()) {
-    if (g.state.status === "awaiting_player" || g.state.status === "model_thinking") c += 1;
-  }
-  return c;
+function tokenHash(token: string): string {
+  return createHash("sha256").update(token, "utf8").digest("hex");
 }
 
-function activeForIp(ip: string): number {
-  let c = 0;
-  for (const g of games.values()) {
-    if (g.ip === ip && (g.state.status === "awaiting_player" || g.state.status === "model_thinking")) c += 1;
-  }
-  return c;
-}
-
-function prune(): void {
-  if (games.size <= MAX_STORED_GAMES) return;
-  const ended = [...games.entries()]
-    .filter(([, g]) => g.state.status === "ended" || g.state.status === "fault")
-    .sort((a, b) => a[1].state.updatedAt - b[1].state.updatedAt);
-  while (games.size > MAX_STORED_GAMES && ended.length > 0) {
-    const [id] = ended.shift()!;
-    games.delete(id);
-  }
-}
-
-export class RefereeError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
-function hashAccessToken(token: string): Buffer {
-  return createHash("sha256").update(token, "utf8").digest();
-}
-
-function ownedGame(gameId: string, accessToken: string | undefined): Game {
-  const g = games.get(gameId);
-  if (!g) throw new RefereeError(404, "no such game");
-  if (!accessToken) throw new RefereeError(403, "game access token required");
-  const presented = hashAccessToken(accessToken);
-  if (
-    presented.length !== g.accessTokenHash.length ||
-    !timingSafeEqual(presented, g.accessTokenHash)
-  ) {
+function checkToken(row: StoredGame, token: string | undefined): void {
+  if (!token) throw new RefereeError(403, "game access token required");
+  const expected = Buffer.from(row.capabilityHash, "hex");
+  const actual = Buffer.from(tokenHash(token), "hex");
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
     throw new RefereeError(403, "invalid game access token");
   }
-  return g;
 }
 
-function releaseAdmission(ip: string): void {
-  const daily = ipDaily.get(ip);
-  if (daily?.day === today()) {
-    daily.count = Math.max(0, daily.count - 1);
-    if (daily.count === 0) ipDaily.delete(ip);
-  }
-  if (globalDaily.day === today()) {
-    globalDaily.count = Math.max(0, globalDaily.count - 1);
-  }
+function clone(state: GameState): GameState {
+  return JSON.parse(JSON.stringify(state)) as GameState;
+}
+
+function ensureReady(): void {
+  if (!reconciled) throw new RefereeError(503, "referee recovery is not complete");
+}
+
+async function owned(gameId: string, accessToken: string | undefined): Promise<StoredGame> {
+  ensureReady();
+  const row = await store.get(gameId);
+  if (!row) throw new RefereeError(404, "no such game");
+  checkToken(row, accessToken);
+  return row;
+}
+
+const drainPendingActions = (): Promise<void> => outbox.drain();
+
+async function expireLocked(
+  row: StoredGame,
+  now = Date.now(),
+  client?: Queryable,
+): Promise<boolean> {
+  const state = row.state;
+  if (state.status !== "awaiting_player" && state.status !== "model_thinking") return false;
+  const expired = tickClock(state.clock, now);
+  if (!expired) return false;
+  const chess = chessFor(state);
+  const result = expired === "player" ? "model_win" : "player_win";
+  const reason =
+    expired === "player" ? "player flag fell — 5+0 timeout" : "Qwen flag fell — 5+0 timeout";
+  const action = planEnd(state, chess, result, reason);
+  await store.save(row.gameId, state, [...row.pendingActions, action], client);
+  return true;
 }
 
 export async function createGame(ip: string, playerAddress?: string): Promise<CreatedGame> {
+  ensureReady();
   const compute = getComputeState();
   if (!compute.ready || !compute.selection) {
-    throw new RefereeError(503, compute.bootError ?? "TEE attestation still in progress — try again shortly");
+    throw new RefereeError(
+      503,
+      compute.bootError ?? "TEE attestation still in progress — try again shortly",
+    );
   }
-  if (playerAddress !== undefined && playerAddress !== null && playerAddress !== "") {
+  if (playerAddress) {
     if (!ethers.isAddress(playerAddress)) {
       throw new RefereeError(400, `not a valid payout address: ${playerAddress}`);
     }
   } else {
     playerAddress = undefined;
   }
-  if (activeCount() >= MAX_ACTIVE_GAMES) {
-    throw new RefereeError(429, "all boards are busy — try again in a minute");
-  }
-  if (activeForIp(ip) >= 1) {
-    throw new RefereeError(429, "you already have an active game — finish or resign it first");
-  }
-  const daily = ipDaily.get(ip);
-  if (daily && daily.day === today() && daily.count >= MAX_GAMES_PER_IP_PER_DAY) {
-    throw new RefereeError(429, "daily game limit reached for your connection — try again tomorrow");
-  }
-  if (globalDaily.day !== today()) globalDaily = { day: today(), count: 0 };
-  if (globalDaily.count >= MAX_GAMES_GLOBAL_PER_DAY) {
-    throw new RefereeError(429, "today's builder-funded match allocation is complete — try again tomorrow");
-  }
-  ipDaily.set(ip, { day: today(), count: daily && daily.day === today() ? daily.count + 1 : 1 });
-  globalDaily.count += 1;
-
-  const chess = new Chess();
+  const accessToken = randomBytes(32).toString("base64url");
   const gameId = ethers.hexlify(ethers.randomBytes(32));
-  const startFen = chess.fen();
-  const startTx: TxRef = { status: "pending" };
+  const admissionKey = store.admissionKey(ip);
+  const day = today();
   const now = Date.now();
-  const pausedClock = createClock(now, GAME_CLOCK_MS);
-  stopClock(pausedClock, now);
+  // The player's clock runs from the moment the board is playable; chain
+  // anchoring happens off the critical path and charges time to nobody.
+  const clock = createClock(now, GAME_CLOCK_MS);
   const state: GameState = {
     gameId,
     playerAddress: playerAddress ?? null,
     playerColor: "w",
-    fen: startFen,
+    fen: START_FEN,
     sans: [],
     status: "awaiting_player",
     result: "ongoing",
-    clock: pausedClock,
+    clock,
     plies: [],
     chain: chainInfo(),
-    startTx,
+    startTx: { status: "pending" },
     model: compute.selection.model,
     provider: compute.selection.provider,
     effectiveSigner: compute.selection.effectiveSigner,
@@ -190,141 +167,78 @@ export async function createGame(ip: string, playerAddress?: string): Promise<Cr
     createdAt: now,
     updatedAt: now,
   };
-  const accessToken = randomBytes(32).toString("base64url");
-  const game: Game = {
-    state,
-    chess,
-    ip,
-    accessTokenHash: hashAccessToken(accessToken),
-    thinking: false,
-    mutating: false,
-    committing: false,
-  };
-  games.set(gameId, game);
-  prune();
-
-  const startRef = await enqueueTx(`startGame ${gameId.slice(0, 10)}`, startTx, () =>
-    journal.startGame(
-      gameId,
-      canonicalHash(startFen),
-      playerAddress ?? ethers.ZeroAddress,
-      compute.selection!.model,
-      compute.selection!.effectiveSigner,
-    ),
-  );
-  if (startRef.status !== "confirmed") {
-    games.delete(gameId);
-    releaseAdmission(ip);
-    throw new RefereeError(
-      502,
-      `game start was not confirmed on 0G Chain: ${startRef.error ?? "unknown transaction failure"}`,
+  const action = newAction("start", {
+    gameId,
+    startFenHash: canonicalHash(START_FEN),
+    player: playerAddress ?? ethers.ZeroAddress,
+    model: state.model,
+    verificationIdentity: state.effectiveSigner,
+  });
+  await store.withAdmissionLock(async (client) => {
+    const counts = await store.admissionCounts(day, admissionKey, client);
+    if (counts.active >= MAX_ACTIVE_GAMES) {
+      throw new RefereeError(429, "all boards are busy — try again in a minute");
+    }
+    if (counts.activeForKey >= 1) {
+      throw new RefereeError(429, "you already have an active game — finish or resign it first");
+    }
+    if (counts.dailyForKey >= MAX_GAMES_PER_IP_PER_DAY) {
+      throw new RefereeError(
+        429,
+        "daily game limit reached for your connection — try again tomorrow",
+      );
+    }
+    if (counts.dailyGlobal >= MAX_GAMES_GLOBAL_PER_DAY) {
+      throw new RefereeError(
+        429,
+        "today's builder-funded match allocation is complete — try again tomorrow",
+      );
+    }
+    await store.insert(
+      {
+        gameId,
+        state,
+        capabilityHash: tokenHash(accessToken),
+        admissionKey,
+        admissionDay: day,
+        status: state.status,
+        pendingActions: [action],
+      },
+      client,
     );
-  }
-  const startedAt = Date.now();
-  state.clock = createClock(startedAt, GAME_CLOCK_MS);
-  state.createdAt = startedAt;
-  state.updatedAt = startedAt;
-  return { game: snapshot(game), accessToken };
+  });
+  background(`start anchor ${gameId}`, drainPendingActions());
+  return { game: clone(state), accessToken };
 }
 
-export function getGame(gameId: string, accessToken: string | undefined): GameState {
-  const g = ownedGame(gameId, accessToken);
-  expireClock(g);
-  return snapshot(g);
-}
-
-export async function playerMove(
+export async function getGame(
   gameId: string,
-  san: string,
   accessToken: string | undefined,
 ): Promise<GameState> {
-  const g = ownedGame(gameId, accessToken);
-  if (g.mutating || g.committing) {
-    throw new RefereeError(409, "another game action is already being committed");
-  }
-  g.mutating = true;
-  try {
-    if (expireClock(g)) {
-      throw new RefereeError(409, `game ended: ${g.state.endReason}`);
-    }
-    if (g.state.status !== "awaiting_player") {
-      throw new RefereeError(409, `not your turn (status: ${g.state.status})`);
-    }
-    const fenBefore = g.chess.fen();
-    let played: { san: string };
-    try {
-      played = g.chess.move(san);
-    } catch {
-      throw new RefereeError(400, `illegal move: ${san}`);
-    }
-    // Charge only decision time. Chain confirmation latency is not chess-clock time.
-    stopClock(g.state.clock, Date.now());
-    g.state.updatedAt = Date.now();
-    await recordPly(g, "player", played.san, fenBefore, g.chess.fen(), null, undefined, undefined);
-    if (g.state.status !== "awaiting_player") return snapshot(g);
-    if (g.chess.isGameOver()) {
-      finalizeFromBoard(g);
-    } else {
-      g.state.status = "model_thinking";
-      g.state.updatedAt = Date.now();
-      startTurn(g.state.clock, "model", Date.now());
-      void modelMove(g);
-    }
-    return snapshot(g);
-  } finally {
-    g.mutating = false;
-  }
+  await owned(gameId, accessToken);
+  let expired = false;
+  await store.withGameLock(gameId, async (client) => {
+    const row = await store.get(gameId, client);
+    if (!row) throw new RefereeError(404, "no such game");
+    checkToken(row, accessToken);
+    expired = await expireLocked(row, Date.now(), client);
+  });
+  if (expired) background(`flag-fall anchor ${gameId}`, drainPendingActions());
+  const row = (await store.get(gameId))!;
+  return clone(row.state);
 }
 
-export function resign(gameId: string, accessToken: string | undefined): GameState {
-  const g = ownedGame(gameId, accessToken);
-  if (g.mutating || g.committing) {
-    throw new RefereeError(409, "another game action is already being committed");
-  }
-  expireClock(g);
-  if (g.state.status === "ended" || g.state.status === "fault") {
-    throw new RefereeError(409, "game already over");
-  }
-  endGame(g, "model_win", "resignation");
-  return snapshot(g);
-}
-
-/**
- * Abort games abandoned mid-play (closed tab, lost session). Without this,
- * orphaned games would hold the per-IP and global active slots forever.
- * Never fires while an attested inference is in flight.
- */
-export function sweepIdleGames(): void {
-  const now = Date.now();
-  for (const g of games.values()) {
-    const active = g.state.status === "awaiting_player" || g.state.status === "model_thinking";
-    if (!active) continue;
-    if (expireClock(g, now)) continue;
-    if (g.thinking || g.mutating || g.committing) continue;
-    if (now - g.state.updatedAt > IDLE_ABORT_MS) {
-      console.warn(
-        `[referee] game ${g.state.gameId.slice(0, 10)} idle ${Math.round((now - g.state.updatedAt) / 60000)} min — aborting`,
-      );
-      endGame(g, "aborted", "abandoned — idle timeout");
-    }
-  }
-}
-
-// ---- internals ---------------------------------------------------------------
-
-async function recordPly(
-  g: Game,
+function makePly(
+  state: GameState,
   mover: "player" | "model",
   san: string,
   fenBefore: string,
   fenAfter: string,
-  receiptHash: string | null,
   receipt: ReceiptBundle | undefined,
-  why: string | undefined,
-): Promise<PlyRecord> {
-  const chain: PlyRecord["chain"] = { status: "pending" };
-  const ply: PlyRecord = {
-    ply: g.state.plies.length + 1,
+  why?: string,
+): PlyRecord {
+  return {
+    ply: state.plies.length + 1,
     mover,
     san,
     fenBefore,
@@ -332,290 +246,378 @@ async function recordPly(
     fenBeforeHash: canonicalHash(fenBefore),
     fenAfterHash: canonicalHash(fenAfter),
     receipt,
-    receiptHash,
+    receiptHash: receipt?.receiptHash ?? null,
     computeCostNeuron:
-      receipt?.scheme === "router-teetls"
-        ? receipt.trace.billing.totalCostNeuron
-        : undefined,
+      receipt?.scheme === "router-teetls" ? receipt.trace.billing.totalCostNeuron : undefined,
     why,
-    chain,
+    chain: { status: "pending" },
     at: Date.now(),
   };
-  const ref = await enqueueTx(`commitMove ${g.state.gameId.slice(0, 10)} #${ply.ply}`, chain, () =>
-    journal.commitMove(
-      g.state.gameId,
-      mover === "model" ? 1 : 0,
-      ply.fenBeforeHash,
-      ply.fenAfterHash,
-      san,
-      receiptHash ?? ethers.ZeroHash,
-    ),
-  );
-  if (ref.status !== "confirmed") {
-    g.chess.undo();
-    const reason = `move ${ply.ply} was not committed on 0G Chain: ${ref.error ?? "unknown transaction failure"}`;
-    fault(g, reason);
-    throw new RefereeError(502, `${reason}; game aborted before any payout`);
-  }
-  ply.chain.moveNo = ply.ply;
-  g.state.plies.push(ply);
-  if (ply.computeCostNeuron) {
-    g.state.computeCostNeuron = (
-      BigInt(g.state.computeCostNeuron) + BigInt(ply.computeCostNeuron)
-    ).toString();
-  }
-  g.state.sans.push(san);
-  g.state.fen = fenAfter;
-  g.state.updatedAt = Date.now();
-
-  return ply;
 }
 
-async function modelMove(g: Game): Promise<void> {
-  if (g.thinking) return;
-  g.thinking = true;
+export async function playerMove(
+  gameId: string,
+  san: string,
+  accessToken: string | undefined,
+): Promise<GameState> {
+  await owned(gameId, accessToken);
+  let timedOut = false;
+  const saved = await store.withGameLock(gameId, async (client) => {
+    const row = await store.get(gameId, client);
+    if (!row) throw new RefereeError(404, "no such game");
+    checkToken(row, accessToken);
+    if (await expireLocked(row, Date.now(), client)) {
+      timedOut = true;
+      return row;
+    }
+    if (row.state.status !== "awaiting_player") {
+      throw new RefereeError(409, `not your turn (status: ${row.state.status})`);
+    }
+    const probe = chessFor(row.state);
+    const before = probe.fen();
+    let move: { san: string };
+    try {
+      move = probe.move(san);
+    } catch {
+      throw new RefereeError(400, `illegal move: ${san}`);
+    }
+    // Applied immediately: board, SAN line and clocks advance now; the
+    // journal anchor trails in the queue and never blocks the player.
+    const ply = makePly(row.state, "player", move.san, before, probe.fen(), undefined);
+    const followUp = applyPly(row.state, ply, Date.now());
+    const queue = [...row.pendingActions, newAction("ply", { gameId, ply })];
+    if (followUp) queue.push(followUp);
+    return store.save(gameId, row.state, queue, client);
+  });
+  background(`move anchor ${gameId}`, drainPendingActions());
+  if (timedOut) {
+    throw new RefereeError(409, `game ended: ${saved.state.endReason ?? "clock expired"}`);
+  }
+  if (saved.state.status === "model_thinking") {
+    background(`model resume ${gameId}`, resumeModel(gameId));
+  }
+  return clone(saved.state);
+}
+
+function directBundle(
+  state: GameState,
+  value: Awaited<ReturnType<typeof completion>>,
+): ReceiptBundle {
+  if (value.transport === "router") return value.value.receipt;
+  return {
+    scheme: "direct-teeml",
+    chatID: value.value.chatID,
+    model: state.model,
+    provider: state.provider,
+    sigText: value.value.signature.text,
+    signature: value.value.signature.signature,
+    effectiveSigner: value.value.effectiveSigner,
+    rawBody: value.value.rawBody,
+    rawBodySha256: value.value.rawBodySha256,
+    requestBodyJson: value.value.requestBodyJson,
+    receipt: value.value.receipt,
+    receiptHash: computeReceiptHash({
+      sigText: value.value.signature.text,
+      signature: value.value.signature.signature,
+      rawBodySha256: value.value.rawBodySha256,
+    }),
+    latencyMs: value.value.latencyMs,
+  };
+}
+
+async function resumeModel(gameId: string): Promise<void> {
+  if (!getComputeState().ready) return;
+  if (!(await store.claimInference(gameId, INFERENCE_LEASE_MS))) return;
+  const heartbeat = setInterval(
+    () => background(`inference lease renewal ${gameId}`, store.renewInference(gameId, INFERENCE_LEASE_MS)),
+    Math.floor(INFERENCE_LEASE_MS / 3),
+  );
+  heartbeat.unref();
   try {
     let feedback: string | undefined;
     for (let attempt = 1; attempt <= MODEL_MOVE_ATTEMPTS; attempt++) {
-      if (g.state.status !== "model_thinking" || expireClock(g)) return;
-      const legalSans = g.chess.moves();
+      const beforeRow = await store.get(gameId);
+      if (!beforeRow || beforeRow.state.status !== "model_thinking") return;
+      const chess = chessFor(beforeRow.state);
+      const legalSans = chess.moves();
       const prompt = buildMoveUserPrompt({
-        fen: g.chess.fen(),
-        turn: g.chess.turn() as "w" | "b",
-        fullmoveNumber: g.chess.moveNumber(),
+        fen: chess.fen(),
+        turn: chess.turn() as "w" | "b",
+        fullmoveNumber: chess.moveNumber(),
         legalSans,
-        recentHistory: g.state.sans.slice(-8),
+        recentHistory: beforeRow.state.sans.slice(-8),
         feedback,
       });
-      const completionResult = await completion(
+      const answer = await completion(
         [
           { role: "system", content: CHESS_SYSTEM_PROMPT },
           { role: "user", content: prompt },
         ],
         MODEL_TEMPERATURE,
       );
-      if (g.state.status !== "model_thinking" || expireClock(g)) return;
-      const content = completionResult.value.content;
-      const parsed = parseMove(content, legalSans);
+      let timedOut = false;
+      await store.withGameLock(gameId, async (client) => {
+        const row = await store.get(gameId, client);
+        if (
+          row &&
+          row.state.status === "model_thinking" &&
+          row.inferenceOwner === store.instanceId
+        ) {
+          timedOut = await expireLocked(row, Date.now(), client);
+        }
+      });
+      if (timedOut) {
+        background(`flag-fall anchor ${gameId}`, drainPendingActions());
+        return;
+      }
+      const parsed = parseMove(answer.value.content, legalSans);
       if (!parsed) {
-        feedback = `Your previous reply was not a single legal move from the list. Reply with ONLY the JSON object. Previous reply began: ${content.slice(0, 80)}`;
-        console.warn(`[referee] model reply unparseable (attempt ${attempt}/${MODEL_MOVE_ATTEMPTS})`);
+        feedback = `Previous reply was not one legal move: ${answer.value.content.slice(0, 80)}`;
         continue;
       }
-      const fenBefore = g.chess.fen();
-      const played = g.chess.move(parsed.san); // legal by construction (parseMove checks the list)
-      // The model has answered. Do not charge its clock for the following chain confirmation.
-      stopClock(g.state.clock, Date.now());
-      const bundle: ReceiptBundle =
-        completionResult.transport === "router"
-          ? completionResult.value.receipt
-          : {
-              scheme: "direct-teeml",
-              chatID: completionResult.value.chatID,
-              model: g.state.model,
-              provider: g.state.provider,
-              sigText: completionResult.value.signature.text,
-              signature: completionResult.value.signature.signature,
-              effectiveSigner: completionResult.value.effectiveSigner,
-              rawBody: completionResult.value.rawBody,
-              rawBodySha256: completionResult.value.rawBodySha256,
-              requestBodyJson: completionResult.value.requestBodyJson,
-              receipt: {
-                requestHash: completionResult.value.receipt.requestHash,
-                responseHash: completionResult.value.receipt.responseHash,
-                providerType: completionResult.value.receipt.providerType,
-                providerIdentity: completionResult.value.receipt.providerIdentity,
-                tlsCertFingerprint: completionResult.value.receipt.tlsCertFingerprint,
-              },
-              receiptHash: computeReceiptHash({
-                sigText: completionResult.value.signature.text,
-                signature: completionResult.value.signature.signature,
-                rawBodySha256: completionResult.value.rawBodySha256,
-              }),
-              latencyMs: completionResult.value.latencyMs,
-            };
-      g.committing = true;
-      try {
-        await recordPly(g, "model", played.san, fenBefore, g.chess.fen(), bundle.receiptHash, bundle, parsed.why || undefined);
-      } finally {
-        g.committing = false;
-      }
-      // A resignation may have landed before the commit phase began. Never
-      // resurrect a terminal game after returning from an asynchronous write.
-      if (g.state.status !== "model_thinking") return;
-      if (g.chess.isGameOver()) {
-        finalizeFromBoard(g);
-      } else {
-        g.state.status = "awaiting_player";
-        g.state.updatedAt = Date.now();
-        startTurn(g.state.clock, "player", Date.now());
-      }
+      await store.withGameLock(gameId, async (client) => {
+        const row = await store.get(gameId, client);
+        if (
+          !row ||
+          row.state.status !== "model_thinking" ||
+          row.inferenceOwner !== store.instanceId
+        ) return;
+        const current = chessFor(row.state);
+        const fenBefore = current.fen();
+        const played = current.move(parsed.san);
+        if (!played) throw new Error("model move became illegal before commit");
+        // The reply is TEE-verified in the completion path before this point;
+        // it hits the board now and its journal anchor trails in the queue.
+        const bundle = directBundle(row.state, answer);
+        const ply = makePly(row.state, "model", played.san, fenBefore, current.fen(), bundle, parsed.why || undefined);
+        const followUp = applyPly(row.state, ply, Date.now());
+        const queue = [...row.pendingActions, newAction("ply", { gameId, ply })];
+        if (followUp) queue.push(followUp);
+        await store.save(gameId, row.state, queue, client);
+      });
+      background(`model move anchor ${gameId}`, drainPendingActions());
       return;
     }
-    if (g.state.status === "model_thinking") {
-      fault(g, "model could not produce a legal move within bounded retries");
-    }
-  } catch (err) {
-    if (g.state.status === "model_thinking") {
-      fault(g, err instanceof Error ? err.message : String(err));
-    }
+    await faultGame(gameId, "model could not produce a legal move within bounded retries");
+  } catch (error) {
+    await faultGame(gameId, error instanceof Error ? error.message : String(error));
   } finally {
-    g.thinking = false;
+    clearInterval(heartbeat);
+    await store.releaseInference(gameId);
   }
 }
 
-function finalizeFromBoard(g: Game): void {
-  const c = g.chess;
-  if (c.isCheckmate()) {
-    // side to move is checkmated; the mover of the LAST ply won
-    const winner = c.turn() === "b" ? "w" : "b";
-    if (winner === "w") {
-      endGame(g, "player_win", "checkmate");
-    } else {
-      endGame(g, "model_win", "checkmate");
-    }
-    return;
-  }
-  let reason = "draw";
-  if (c.isStalemate()) reason = "stalemate";
-  else if (c.isInsufficientMaterial()) reason = "insufficient material";
-  else if (c.isThreefoldRepetition()) reason = "threefold repetition";
-  else if (c.isDraw()) reason = "fifty-move rule";
-  endGame(g, "draw", reason);
-}
-
-function endGame(g: Game, result: GameResult, reason: string): void {
-  stopClock(g.state.clock, Date.now());
-  const journalComplete =
-    g.state.startTx.status === "confirmed" &&
-    g.state.plies.every((ply) => ply.chain.status === "confirmed");
-  if (!journalComplete) {
-    g.state.status = "fault";
-    g.state.result = "aborted";
-    g.state.endReason = "journal incomplete — result and payout were not submitted";
-    g.state.faultReason = "at least one required 0G Chain commitment is not confirmed";
-    g.state.updatedAt = Date.now();
-    return;
-  }
-  g.state.status = "ended";
-  g.state.result = result;
-  g.state.endReason = reason;
-  g.state.updatedAt = Date.now();
-
-  const resultEnum =
-    result === "player_win"
-      ? RESULT_ENUM.PlayerWin
-      : result === "model_win"
-        ? RESULT_ENUM.ModelWin
-        : result === "draw"
-          ? RESULT_ENUM.Draw
-          : RESULT_ENUM.Aborted;
-
-  const endTx: TxRef = { status: "pending" };
-  g.state.endTx = endTx;
-  const finalFenHash = canonicalHash(g.chess.fen());
-  const endPromise = enqueueTx(`endGame ${g.state.gameId.slice(0, 10)} (${result})`, endTx, () =>
-    journal.endGame(g.state.gameId, resultEnum, finalFenHash),
-  );
-  void endPromise.then(() => {
-    g.state.updatedAt = Date.now();
+async function faultGame(gameId: string, reason: string): Promise<void> {
+  await store.withGameLock(gameId, async (client) => {
+    const row = await store.get(gameId, client);
+    if (!row || row.state.status !== "model_thinking") return;
+    row.state.faultReason = reason;
+    const chess = chessFor(row.state);
+    const action = planEnd(
+      row.state,
+      chess,
+      "aborted",
+      "model fault — game aborted, no fabricated move",
+    );
+    await store.save(gameId, row.state, [...row.pendingActions, action], client);
   });
-
-  if (result === "player_win" && g.state.playerAddress) {
-    const awardTx: TxRef & { amountOg?: string } = { status: "pending" };
-    g.state.awardTx = awardTx;
-    void endPromise.then(async (endRef) => {
-      if (endRef.status !== "confirmed") {
-        awardTx.status = "failed";
-        awardTx.error = "endGame tx failed — award not attempted";
-        return;
-      }
-      const blocker = await awardPrecheck(g.state.gameId);
-      if (blocker) {
-        awardTx.status = "failed";
-        awardTx.error = `award blocked: ${blocker}`;
-        g.state.updatedAt = Date.now();
-        return;
-      }
-      const reads = await readPot();
-      awardTx.amountOg = reads.perWinBountyOg;
-      await enqueueTx(`award ${g.state.gameId.slice(0, 10)}`, awardTx, () => pot.award(g.state.gameId));
-      g.state.updatedAt = Date.now();
-    });
-  }
+  background(`fault anchor ${gameId}`, drainPendingActions());
 }
 
-function fault(g: Game, reason: string): void {
-  console.error(`[referee] game ${g.state.gameId.slice(0, 10)} FAULT: ${reason}`);
-  g.state.faultReason = reason;
-  stopClock(g.state.clock, Date.now());
-  g.state.status = "fault";
-  g.state.result = "aborted";
-  g.state.endReason = "model fault — game aborted, no fabricated move";
-  g.state.updatedAt = Date.now();
-  const endTx: TxRef = { status: "pending" };
-  g.state.endTx = endTx;
-  void enqueueTx(`endGame ${g.state.gameId.slice(0, 10)} (aborted)`, endTx, () =>
-    journal.endGame(g.state.gameId, RESULT_ENUM.Aborted, canonicalHash(g.chess.fen())),
-  );
-}
-
-function snapshot(g: Game): GameState {
-  expireClock(g);
-  // plies/txrefs are mutated in place; clone for a consistent wire snapshot
-  return JSON.parse(JSON.stringify(g.state)) as GameState;
-}
-
-function expireClock(g: Game, now = Date.now()): boolean {
-  if (g.state.status !== "awaiting_player" && g.state.status !== "model_thinking") return false;
-  const expired = tickClock(g.state.clock, now);
-  if (!expired) return false;
-  if (expired === "player") {
-    endGame(g, "model_win", "player flag fell — 5+0 timeout");
-  } else {
-    endGame(g, "player_win", "Qwen flag fell — 5+0 timeout");
-  }
-  return true;
-}
-
-/** Downloadable, self-contained evidence bundle for one game. */
-export function gameEvidence(
+export async function resign(
   gameId: string,
   accessToken: string | undefined,
-): Record<string, unknown> {
-  const g = ownedGame(gameId, accessToken);
+): Promise<GameState> {
+  await owned(gameId, accessToken);
+  let timedOut = false;
+  const saved = await store.withGameLock(gameId, async (client) => {
+    const row = await store.get(gameId, client);
+    if (!row) throw new RefereeError(404, "no such game");
+    checkToken(row, accessToken);
+    if (await expireLocked(row, Date.now(), client)) {
+      timedOut = true;
+      return row;
+    }
+    if (row.state.status === "ended" || row.state.status === "fault") {
+      throw new RefereeError(409, "game already over");
+    }
+    const chess = chessFor(row.state);
+    const action = planEnd(row.state, chess, "model_win", "resignation");
+    return store.save(gameId, row.state, [...row.pendingActions, action], client);
+  });
+  background(`resign anchor ${gameId}`, drainPendingActions());
+  if (timedOut) {
+    throw new RefereeError(409, `game ended: ${saved.state.endReason ?? "clock expired"}`);
+  }
+  return clone(saved.state);
+}
+
+export async function sweepIdleGames(): Promise<void> {
+  if (!reconciled) return;
+  const now = Date.now();
+  const candidates = await store.listRecoverable();
+  // Retry any stuck anchors once per sweep; the wallet lock serializes drains.
+  if (candidates.some((row) => row.pendingActions.length > 0)) {
+    background("sweep outbox drain", drainPendingActions());
+  }
+  for (const candidate of candidates) {
+    await store.withGameLock(candidate.gameId, async (client) => {
+      const row = await store.get(candidate.gameId, client);
+      if (!row) return;
+      if (await expireLocked(row, now, client)) return;
+      if (
+        (row.state.status === "awaiting_player" || row.state.status === "model_thinking") &&
+        now - row.state.updatedAt > IDLE_ABORT_MS
+      ) {
+        const chess = chessFor(row.state);
+        const action = planEnd(row.state, chess, "aborted", "abandoned — idle timeout");
+        await store.save(row.gameId, row.state, [...row.pendingActions, action], client);
+      }
+    });
+    const row = await store.get(candidate.gameId);
+    if (row?.pendingActions.length) background("outbox drain", drainPendingActions());
+    if (row?.state.status === "model_thinking") {
+      background(`model resume ${row.gameId}`, resumeModel(row.gameId));
+    }
+  }
+}
+
+async function reconcile(row: StoredGame): Promise<void> {
+  const chain = await readJournalGame(row.gameId, row.state.startTx.blockNumber ?? 0);
+  try {
+    verifyJournalState(row.state, chain, START_FEN);
+    chessFor(row.state);
+  } catch (error) {
+    throw new ReconcileMismatch(error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function reconcileStable(gameId: string, allowDrain: boolean): Promise<StoredGame> {
+  for (;;) {
+    let verified: StoredGame | null = null;
+    let pendingCount = 0;
+    await store.withGameLock(gameId, async (client) => {
+      const row = await store.get(gameId, client);
+      if (!row) throw new RefereeError(404, "no such game");
+      if (row.pendingActions.length > 0) {
+        pendingCount = row.pendingActions.length;
+        return;
+      }
+      await reconcile(row);
+      await store.markReconciled(gameId, client);
+      verified = row;
+    });
+    if (verified) return verified;
+    if (pendingCount === 0) throw new Error(`unable to reconcile ${gameId}`);
+    if (!allowDrain) {
+      throw new RefereeError(
+        409,
+        `evidence is available once chain sync completes — ${pendingCount} anchor${pendingCount === 1 ? "" : "s"} pending`,
+      );
+    }
+    // Never acquire the wallet lock while holding a game lock.
+    await drainPendingActions();
+  }
+}
+
+/**
+ * Reconciles only active games and rows that were pending when recovery began.
+ * A definitive journal/state mismatch freezes that one game fail-closed and
+ * never blocks the rest of the service; infrastructure errors still abort boot.
+ */
+export async function recoverReferee(): Promise<void> {
+  reconciled = false;
+  const beforeDrain = await store.listRecoverable();
+  await drainPendingActions();
+  const scopedIds = new Set(beforeDrain.map((row) => row.gameId));
+  for (const row of await store.listRecoverable()) scopedIds.add(row.gameId);
+  for (const gameId of scopedIds) {
+    const row = await store.get(gameId);
+    if (!row || row.state.startTx.status === "failed") continue;
+    try {
+      await reconcileStable(gameId, true);
+    } catch (error) {
+      if (!(error instanceof ReconcileMismatch)) throw error;
+      const reason = error.message;
+      console.error(
+        `[referee] RECOVERY MISMATCH for ${gameId}: ${reason} — freezing game fail-closed`,
+      );
+      await store.withGameLock(gameId, async (client) => {
+        const fresh = await store.get(gameId, client);
+        if (!fresh) return;
+        const state = fresh.state;
+        if (state.status !== "ended") {
+          state.status = "fault";
+          state.result = "aborted";
+        }
+        state.faultReason = `recovery reconciliation failed: ${reason}`;
+        state.endReason = state.endReason ?? "frozen at recovery — journal and local state disagree";
+        stopClock(state.clock, Date.now());
+        // The queue is being cleared, so any unpaid award can never pay out —
+        // mark it failed instead of leaving a forever-pending payout.
+        voidPendingAward(state, "award cancelled: recovery freeze — journal and local state disagree");
+        state.updatedAt = Date.now();
+        await store.save(gameId, state, [], client);
+      });
+    }
+  }
+  reconciled = true;
+}
+
+/** Called only after initCompute has completed successfully. */
+export async function startRecoveredModels(): Promise<void> {
+  if (!getComputeState().ready) return;
+  for (const row of await store.listRecoverable()) {
+    if (row.state.status === "model_thinking") {
+      background(`recovered model ${row.gameId}`, resumeModel(row.gameId));
+    }
+  }
+}
+
+export async function gameEvidence(
+  gameId: string,
+  accessToken: string | undefined,
+): Promise<Record<string, unknown>> {
+  const row = await owned(gameId, accessToken);
+  if (row.pendingActions.length > 0) {
+    throw new RefereeError(
+      409,
+      `evidence is available once chain sync completes — ${row.pendingActions.length} anchor${row.pendingActions.length === 1 ? "" : "s"} pending`,
+    );
+  }
+  const fresh = await reconcileStable(gameId, false);
+  checkToken(fresh, accessToken);
+  const state = fresh.state;
   const compute = getComputeState();
   return {
     kind: "fairmate-game-evidence",
     generatedAt: new Date().toISOString(),
-    network: g.state.chain.network,
-    chainId: g.state.chain.chainId,
-    explorer: g.state.chain.explorer,
-    journalAddress: g.state.chain.journalAddress,
-    potAddress: g.state.chain.potAddress,
-    gameId: g.state.gameId,
-    playerAddress: g.state.playerAddress,
-    model: g.state.model,
-    provider: g.state.provider,
-    effectiveSigner: g.state.effectiveSigner,
-    verificationScheme: g.state.verificationScheme,
-    computeCostNeuron: g.state.computeCostNeuron,
-    result: g.state.result,
-    clock: g.state.clock,
-    endReason: g.state.endReason ?? null,
-    faultReason: g.state.faultReason ?? null,
-    startFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-    finalFen: g.state.fen,
-    sans: g.state.sans,
-    startTx: g.state.startTx,
-    endTx: g.state.endTx ?? null,
-    awardTx: g.state.awardTx ?? null,
+    network: state.chain.network,
+    chainId: state.chain.chainId,
+    explorer: state.chain.explorer,
+    journalAddress: state.chain.journalAddress,
+    potAddress: state.chain.potAddress,
+    gameId: state.gameId,
+    playerAddress: state.playerAddress,
+    model: state.model,
+    provider: state.provider,
+    effectiveSigner: state.effectiveSigner,
+    verificationScheme: state.verificationScheme,
+    computeCostNeuron: state.computeCostNeuron,
+    result: state.result,
+    clock: state.clock,
+    endReason: state.endReason ?? null,
+    faultReason: state.faultReason ?? null,
+    startFen: START_FEN,
+    finalFen: state.fen,
+    sans: state.sans,
+    startTx: state.startTx,
+    endTx: state.endTx ?? null,
+    awardTx: state.awardTx ?? null,
     attestationNotes: compute.attestation?.notes ?? [],
     attestationTrustBoundary: compute.attestation?.trustBoundary ?? null,
-    plies: g.state.plies,
+    plies: state.plies,
     verify:
-      g.state.verificationScheme === "router-teetls"
-        ? "Run pnpm run verify -- --file=<this file>. Recompute exact request/response hashes, Router trace/provider/billing fields and the full evidence commitment, then compare each confirmed MoveCommitted event. 0G Router remains the explicit TeeTLS verification trust boundary."
-        : "Run pnpm run verify -- --file=<this file>. Recompute response hashes, recover each direct TeeML signature against the attested signer and compare each confirmed MoveCommitted event.",
+      "Run pnpm run verify -- --file=<this file> and compare every receipt and MoveCommitted event.",
   };
 }

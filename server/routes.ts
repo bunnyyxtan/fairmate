@@ -75,9 +75,9 @@ api.post("/games", async (req, res) => {
   }
 });
 
-api.get("/games/:id", (req, res) => {
+api.get("/games/:id", async (req, res) => {
   try {
-    res.json(getGame(req.params.id, gameAccessToken(req)));
+    res.json(await getGame(req.params.id, gameAccessToken(req)));
   } catch (err) {
     fail(res, err);
   }
@@ -96,17 +96,17 @@ api.post("/games/:id/moves", async (req, res) => {
   }
 });
 
-api.post("/games/:id/resign", (req, res) => {
+api.post("/games/:id/resign", async (req, res) => {
   try {
-    res.json(resign(req.params.id, gameAccessToken(req)));
+    res.json(await resign(req.params.id, gameAccessToken(req)));
   } catch (err) {
     fail(res, err);
   }
 });
 
-api.get("/games/:id/evidence", (req, res) => {
+api.get("/games/:id/evidence", async (req, res) => {
   try {
-    const bundle = gameEvidence(req.params.id, gameAccessToken(req));
+    const bundle = await gameEvidence(req.params.id, gameAccessToken(req));
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="fairmate-game-${req.params.id.slice(2, 10)}.json"`,

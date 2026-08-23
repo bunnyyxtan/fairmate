@@ -1,14 +1,13 @@
 /**
- * Referee chain client — owns the wallet, the journal + pot contracts, and a
- * STRICTLY SERIALIZED transaction queue (one referee wallet => nonces must be
- * sequential; parallel sends would collide).
+ * Referee chain client. Cross-process nonce serialization is provided by the
+ * PostgreSQL wallet advisory lock in fairmate-store.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { ethers } from "ethers";
 import { NETWORKS, PROJECT_ROOT, type NetworkName } from "../src/config";
 import { loadPrivateKey } from "../src/keys";
-import type { ChainInfo, TxRef } from "../shared/protocol";
+import type { ChainInfo } from "../shared/protocol";
 
 const production = process.env.NODE_ENV === "production";
 const rawNet = process.env.OG_CHAIN_NETWORK ??
@@ -67,6 +66,7 @@ export const wallet = new ethers.Wallet(loadPrivateKey(), provider);
 export const journal = new ethers.Contract(deployment.journalAddress, build.MoveJournal.abi, wallet);
 export const pot = new ethers.Contract(deployment.potAddress, build.ChallengePot.abi, wallet);
 const potIface = new ethers.Interface(build.ChallengePot.abi);
+const journalIface = new ethers.Interface(build.MoveJournal.abi);
 
 export const RESULT_ENUM = { Ongoing: 0, PlayerWin: 1, ModelWin: 2, Draw: 3, Aborted: 4 } as const;
 
@@ -84,59 +84,186 @@ export function refereeAddress(): string {
   return wallet.address;
 }
 
-// ---- serialized tx queue ----------------------------------------------------
+export type PreparedChainCall =
+  | { kind: "start"; args: [string, string, string, string, string] }
+  | { kind: "ply"; args: [string, number, string, string, string, string] }
+  | { kind: "end"; args: [string, number, string] }
+  | { kind: "award"; args: [string] };
 
-let txChain: Promise<unknown> = Promise.resolve();
-
-/**
- * Enqueue an on-chain action. `ref` is mutated in place as the tx progresses
- * (pending -> confirmed/failed) so callers can expose live status. Returns a
- * promise that resolves AFTER confirmation (or failure) for sequencing.
- */
-export function enqueueTx(
-  label: string,
-  ref: TxRef,
-  send: () => Promise<ethers.TransactionResponse>,
-): Promise<TxRef> {
-  const task = async (): Promise<TxRef> => {
-    try {
-      const tx = await send();
-      ref.txHash = tx.hash;
-      const rcpt = await tx.wait();
-      if (rcpt?.status !== 1) throw new Error(`tx reverted: ${tx.hash}`);
-      ref.status = "confirmed";
-      ref.blockNumber = rcpt.blockNumber;
-      console.log(`[chain] ${label} confirmed ${tx.hash}`);
-    } catch (err) {
-      ref.status = "failed";
-      ref.error = shortChainError(err);
-      console.error(`[chain] ${label} FAILED: ${ref.error}`);
-    }
-    return ref;
-  };
-  const p = txChain.then(task, task);
-  txChain = p.catch(() => undefined);
-  return p as Promise<TxRef>;
+export interface SignedChainTransaction {
+  rawTx: string;
+  txHash: string;
+  nonce: number;
 }
 
-export function decodePotError(err: unknown): string {
-  const e = err as { data?: string; info?: { error?: { data?: string } }; revert?: { name?: string } };
-  if (e.revert?.name) return e.revert.name;
-  const data = e.data ?? e.info?.error?.data;
-  if (typeof data === "string") {
-    try {
-      const parsed = potIface.parseError(data);
-      if (parsed) return parsed.name;
-    } catch {
-      /* not a pot error */
-    }
+/** Populate and sign, but do not broadcast. Caller must hold the DB wallet lock. */
+export async function prepareTransaction(call: PreparedChainCall): Promise<SignedChainTransaction> {
+  const target = call.kind === "award" ? deployment.potAddress : deployment.journalAddress;
+  const iface = call.kind === "award" ? potIface : journalIface;
+  const method =
+    call.kind === "start"
+      ? "startGame"
+      : call.kind === "ply"
+        ? "commitMove"
+        : call.kind === "end"
+          ? "endGame"
+          : "award";
+  const data = iface.encodeFunctionData(method, call.args);
+  const populated = await wallet.populateTransaction({ to: target, data });
+  const rawTx = await wallet.signTransaction(populated);
+  if (populated.nonce == null) throw new Error("wallet did not populate a transaction nonce");
+  return { rawTx, txHash: ethers.keccak256(rawTx), nonce: populated.nonce };
+}
+
+export async function transactionReceipt(txHash: string): Promise<ethers.TransactionReceipt | null> {
+  return provider.getTransactionReceipt(txHash);
+}
+
+export async function broadcastRawTransaction(rawTx: string): Promise<ethers.TransactionReceipt> {
+  const txHash = ethers.keccak256(rawTx);
+  let receipt: ethers.TransactionReceipt | null;
+  try {
+    const tx = await provider.broadcastTransaction(rawTx);
+    receipt = await tx.wait();
+  } catch (error) {
+    // "already known" and "nonce too low" are normal recovery outcomes when
+    // the exact persisted bytes reached another RPC node before a crash.
+    await provider.getTransaction(txHash);
+    receipt = await provider.waitForTransaction(
+      txHash,
+      1,
+      Number(process.env.FAIRMATE_TX_WAIT_MS ?? 120_000),
+    );
+    if (!receipt) throw error;
   }
-  return shortChainError(err);
+  if (!receipt) throw new Error(`transaction was not mined before timeout: ${txHash}`);
+  return receipt;
 }
 
-function shortChainError(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err);
-  return msg.length > 220 ? `${msg.slice(0, 220)}…` : msg;
+export interface JournalMove {
+  moveNo: number;
+  mover: number;
+  fenBeforeHash: string;
+  fenAfterHash: string;
+  san: string;
+  receiptHash: string;
+}
+
+export interface JournalSnapshot {
+  exists: boolean;
+  startFenHash: string;
+  player: string;
+  moveCount: number;
+  result: number;
+  starts: Array<{
+    startFenHash: string;
+    player: string;
+    model: string;
+    verificationIdentity: string;
+    txHash: string;
+    blockNumber: number;
+  }>;
+  moves: JournalMove[];
+  ended: { result: number; finalFenHash: string; moveCount: number } | null;
+  rewarded: boolean;
+  award: { txHash: string; blockNumber: number; amount: string } | null;
+}
+
+/** Strongly typed chain read used by fail-closed startup reconciliation. */
+export async function readJournalGame(gameId: string, fromBlock = 0): Promise<JournalSnapshot> {
+  const meta = (await journal.getGame(gameId)) as {
+    startFenHash: string;
+    player: string;
+    moveCount: bigint;
+    result: bigint;
+    exists: boolean;
+  };
+  if (!meta.exists) {
+    return {
+      exists: false,
+      startFenHash: ethers.ZeroHash,
+      player: ethers.ZeroAddress,
+      moveCount: 0,
+      result: 0,
+      starts: [],
+      moves: [],
+      ended: null,
+      rewarded: false,
+      award: null,
+    };
+  }
+  const [startEvents, moveEvents, endEvents, awardEvents, rewarded] = await Promise.all([
+    journal.queryFilter(journal.filters.GameStarted(gameId), fromBlock, "latest"),
+    journal.queryFilter(journal.filters.MoveCommitted(gameId), fromBlock, "latest"),
+    journal.queryFilter(journal.filters.GameEnded(gameId), fromBlock, "latest"),
+    pot.queryFilter(pot.filters.WinAwarded(gameId), fromBlock, "latest"),
+    pot.rewarded(gameId) as Promise<boolean>,
+  ]);
+  const moves = moveEvents.map((event) => {
+    const args = (event as ethers.EventLog).args;
+    return {
+      moveNo: Number(args.moveNo),
+      mover: Number(args.mover),
+      fenBeforeHash: String(args.fenBeforeHash),
+      fenAfterHash: String(args.fenAfterHash),
+      san: String(args.san),
+      receiptHash: String(args.receiptHash),
+    };
+  });
+  const lastEnd = endEvents.at(-1) as ethers.EventLog | undefined;
+  const lastAward = awardEvents.at(-1) as ethers.EventLog | undefined;
+  const ended = lastEnd
+    ? {
+        result: Number(lastEnd.args.result),
+        finalFenHash: String(lastEnd.args.finalFenHash),
+        moveCount: Number(lastEnd.args.moveCount),
+      }
+    : null;
+  return {
+    exists: true,
+    startFenHash: String(meta.startFenHash),
+    player: String(meta.player),
+    moveCount: Number(meta.moveCount),
+    result: Number(meta.result),
+    starts: startEvents.map((event) => {
+      const log = event as ethers.EventLog;
+      return {
+        startFenHash: String(log.args.startFenHash),
+        player: String(log.args.player),
+        model: String(log.args.model),
+        verificationIdentity: String(log.args.verificationIdentity),
+        txHash: log.transactionHash,
+        blockNumber: log.blockNumber,
+      };
+    }),
+    moves,
+    ended,
+    rewarded: Boolean(rewarded),
+    award: lastAward
+      ? {
+          txHash: lastAward.transactionHash,
+          blockNumber: lastAward.blockNumber,
+          amount: ethers.formatEther(lastAward.args.amount as bigint),
+        }
+      : null,
+  };
+}
+
+export async function readAward(
+  gameId: string,
+  fromBlock = 0,
+): Promise<{ rewarded: boolean; txHash?: string; blockNumber?: number; amountOg?: string }> {
+  const [rewarded, events] = await Promise.all([
+    pot.rewarded(gameId) as Promise<boolean>,
+    pot.queryFilter(pot.filters.WinAwarded(gameId), fromBlock, "latest"),
+  ]);
+  const event = events.at(-1) as ethers.EventLog | undefined;
+  return {
+    rewarded: Boolean(rewarded),
+    txHash: event?.transactionHash,
+    blockNumber: event?.blockNumber,
+    amountOg: event ? ethers.formatEther(event.args.amount as bigint) : undefined,
+  };
 }
 
 // ---- pot reads ----------------------------------------------------------------
@@ -169,14 +296,4 @@ export async function readPot(): Promise<PotReads> {
   };
   potCache = { at: Date.now(), value };
   return value;
-}
-
-/** Static pre-check for award(); returns null if it would succeed, else the revert name. */
-export async function awardPrecheck(gameId: string): Promise<string | null> {
-  try {
-    await pot.award.staticCall(gameId);
-    return null;
-  } catch (err) {
-    return decodePotError(err);
-  }
 }

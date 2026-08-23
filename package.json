@@ -7,24 +7,31 @@
   "repository": "github:bunnyyxtan/fairmate",
   "license": "MIT",
   "scripts": {
+    "predev": "pnpm run compile",
     "dev": "NODE_ENV=development tsx server/index.ts",
+    "prestart": "pnpm run compile",
     "start": "NODE_ENV=production tsx server/index.ts",
-    "build": "vite build",
+    "build": "pnpm run compile && vite build",
     "compile": "tsx scripts/compile.ts",
+    "predeploy": "pnpm run compile",
     "deploy": "tsx scripts/deploy.ts",
+    "predrill": "pnpm run compile",
     "drill": "tsx scripts/pot-drill.ts",
     "selfplay": "tsx scripts/selfplay-attested.ts",
+    "preverify": "pnpm run compile",
     "verify": "tsx scripts/verify-evidence.ts",
     "balance": "tsx scripts/balance.ts",
     "services": "tsx scripts/list-services.ts",
-    "test": "tsx --test server/**/*.test.ts src/**/*.test.ts shared/**/*.test.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "test": "tsx --test --test-concurrency=1 server/**/*.test.ts src/**/*.test.ts shared/**/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.app.json --noEmit"
   },
   "dependencies": {
     "@0gfoundation/0g-compute-ts-sdk": "0.9.0",
     "chess.js": "^1.4.0",
     "ethers": "^6.17.0",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "pg": "^8.22.0"
   },
   "devDependencies": {
     "@radix-ui/react-collapsible": "^1.1.4",
@@ -42,6 +49,7 @@
     "@tailwindcss/vite": "^4.1.14",
     "@types/express": "^5.0.6",
     "@types/node": "^25.3.3",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.4",

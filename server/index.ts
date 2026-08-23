@@ -12,7 +12,7 @@ import { resolve } from "node:path";
 import express from "express";
 import { api } from "./routes";
 import { initCompute } from "./compute-service";
-import { sweepIdleGames } from "./referee";
+import { recoverReferee, startRecoveredModels, sweepIdleGames } from "./referee";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const rawBase = process.env.BASE_PATH ?? "/";
@@ -20,6 +20,9 @@ const base = rawBase.endsWith("/") ? rawBase : `${rawBase}/`;
 const root = resolve(import.meta.dirname, "..");
 
 async function main() {
+  // Resolve durable outbox entries and verify active/startup-pending games
+  // before traffic. Completed history is verified on evidence export.
+  await recoverReferee();
   const app = express();
   // Production is deployed behind exactly one reverse-proxy hop.
   // Never trust an arbitrary X-Forwarded-For chain supplied by the client.
@@ -54,10 +57,18 @@ async function main() {
 
   // TEE attestation + provider selection happens in the background; games are
   // rejected with 503 until it completes (never silently unverified).
-  void initCompute();
+  void initCompute()
+    .then(() => startRecoveredModels())
+    .catch((error) => {
+      console.error(`[compute] initialization failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
 
   // abort abandoned games so they don't hold active-game slots forever
-  setInterval(sweepIdleGames, 60_000).unref();
+  setInterval(() => {
+    void sweepIdleGames().catch((error) => {
+      console.error(`[referee] idle sweep failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
+  }, 60_000).unref();
 }
 
 main().catch((err) => {

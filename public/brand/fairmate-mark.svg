@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">FairMate Board Crown</title>
+  <path d="M15 45h28v20H15zM43 45h28v20H43zM15 65h28v20H15zM43 65h28v20H43z" fill="#FFF2C7" stroke="#20140E" stroke-width="5"/>
+  <path d="M15 45h28v20H15zM43 65h28v20H15z" fill="#FF542E"/>
+  <path d="M29 69V35l10 10 11-20 11 20 10-10v34H29Z" fill="#FFDA47" stroke="#20140E" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M25 85h50" stroke="#20140E" stroke-width="7"/>
+</svg>

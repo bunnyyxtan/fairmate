@@ -17,6 +17,7 @@ export default function App() {
   const [bootError, setBootError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"move" | "resign" | null>(null);
   const [rules, setRules] = useState(false);
 
   const boot = useCallback(async () => {
@@ -56,6 +57,7 @@ export default function App() {
 
   const shouldPoll = game && (
     game.status === "model_thinking" ||
+    (game.result === "ongoing" && game.clock.active === null) ||
     game.startTx.status === "pending" ||
     game.endTx?.status === "pending" ||
     game.awardTx?.status === "pending" ||
@@ -78,13 +80,14 @@ export default function App() {
     return () => { active = false; window.clearInterval(timer); };
   }, [game?.gameId, gameToken, shouldPoll]);
 
-  async function action(work: () => Promise<GameState>) {
+  async function action(kind: "move" | "resign", work: () => Promise<GameState>) {
     if (submitting) return;
     setSubmitting(true);
+    setPendingAction(kind);
     setApiError(null);
     try { setGame(await work()); }
     catch (error) { setApiError(error instanceof Error ? error.message : "The request failed."); }
-    finally { setSubmitting(false); }
+    finally { setSubmitting(false); setPendingAction(null); }
   }
   const start = (address?: string) => {
     if (submitting) return;
@@ -113,10 +116,10 @@ export default function App() {
       <header className="cl-nav"><Brand /><nav aria-label="Primary"><a href="#challenge">Challenge</a><button type="button" onClick={() => setRules(true)}>How it stays fair</button><a href="#contracts">On-chain</a></nav><span className="fm-network"><i />{pot.chain.network} · {pot.chain.chainId}</span></header>
       <main>
         {!game ? <Lobby pot={pot} busy={submitting} disabled={!pot.attestationReady || Boolean(bootError)} error={apiError} onStart={start} onRules={() => setRules(true)} /> :
-          <GameView game={game} accessToken={gameToken ?? ""} submitting={submitting} error={apiError} onMove={(san) => void action(() => api.move(game.gameId, san, gameToken ?? ""))} onResign={() => void action(() => api.resign(game.gameId, gameToken ?? ""))} onReplay={replay} onLobby={lobby} />}
+          <GameView game={game} pot={pot} accessToken={gameToken ?? ""} submitting={submitting} pendingAction={pendingAction} error={apiError} onMove={(san) => void action("move", () => api.move(game.gameId, san, gameToken ?? ""))} onResign={() => void action("resign", () => api.resign(game.gameId, gameToken ?? ""))} onReplay={replay} onLobby={lobby} />}
         {!game && (!pot.attestationReady || bootError) && <section className="attestation-warning" role="alert"><ShieldCheck /><div><strong>Attestation unavailable</strong><p>{bootError ?? "The secure model attestation is still being prepared. New games are disabled until it is ready."}</p></div><button type="button" onClick={() => void boot()}>Check again</button></section>}
       </main>
-      <footer id="contracts"><Brand /><span>Verifiable chess, built on 0G.</span><a href={pot.chain.explorer} target="_blank" rel="noreferrer">Open {pot.chain.network} explorer <ExternalLink /></a></footer>
+      <footer id="contracts"><Brand compact /><span>Verifiable chess, built on 0G.</span><a href={pot.chain.explorer} target="_blank" rel="noreferrer">Open {pot.chain.network} explorer <ExternalLink size={16} /></a></footer>
       {rules && <Dialog titleId="rules-title" onClose={() => setRules(false)}>
         <span>Fair-play rules</span><h2 id="rules-title">THE MODEL CAN'T<br />SWITCH THE GAME.</h2>
         <p>The model, provider identity, verification scheme and move journal come from the live service configuration. FairMate recomputes every evidence property available to the browser and states the Router trust boundary explicitly.</p>

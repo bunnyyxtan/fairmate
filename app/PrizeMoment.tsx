@@ -18,16 +18,21 @@ export function PrizeMoment({
   const award = game.awardTx;
   const payable = Boolean(game.playerAddress);
   const recorded = game.endTx?.status === "confirmed";
+  const endFailed = game.endTx?.status === "failed";
   return (
     <section className="result-screen win-screen" aria-labelledby="prize-title">
       <div className="prize-art"><img src={`${import.meta.env.BASE_URL}images/trophy.webp`} width="1024" height="1024" alt="Gold prize trophy with confetti" /></div>
       <div className="prize-copy">
-        <span className="cl-demo-label">{recorded ? "Journal-recorded victory" : "Chess victory · journal not confirmed"}</span>
+        <span className="cl-demo-label">{recorded ? "Journal-recorded victory" : endFailed ? "Chess victory · journal not confirmed" : "Chess victory · journal settling"}</span>
         <h1 id="prize-title">YOU BEAT<br />{game.model}.</h1>
         <p>{game.endReason ?? "Your win is recorded in the match journal."}</p>
         <div className="cl-prize-value"><small>Prize</small><strong>{award?.amountOg ? `${award.amountOg} OG` : "Awaiting award amount"}</strong></div>
         <ul className="cl-prize-proof">
-          <li className={recorded ? "" : "failed"}><ShieldCheck /><span><b>{recorded ? "Game result recorded" : "Game result not recorded"}</b><small>{recorded ? game.endTx?.txHash ?? game.gameId : game.endTx?.error ?? "Waiting for the end-game transaction…"}</small></span>{recorded && <Check />}</li>
+          <li className={endFailed ? "failed" : ""}><ShieldCheck /><span><b>
+            {recorded ? "Game result recorded" : endFailed ? "Game result not recorded" : "Game result anchoring on-chain"}
+          </b><small>
+            {recorded ? game.endTx?.txHash ?? game.gameId : endFailed ? game.endTx?.error ?? "The end-game transaction failed." : "Settling in the background — the payout unlocks after this confirms."}
+          </small></span>{recorded && <Check />}</li>
           <li className={award?.status === "failed" ? "failed" : ""}><Trophy /><span><b>
             {!payable ? "Win cannot be paid" : award?.status === "confirmed" ? "Award confirmed" : award?.status === "failed" ? "Award transaction failed" : "Award transaction pending"}
           </b><small>{!payable ? "No payout address was supplied when this game began." : award?.error ?? award?.txHash ?? "Waiting for chain confirmation…"}</small></span></li>

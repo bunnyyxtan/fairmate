@@ -2,6 +2,8 @@
 
 **Beat a TeeTLS-verified chess rival. Win 0.1 OG from a builder-funded pot.**
 
+**Live: [fairmate-cyan.vercel.app](https://fairmate-cyan.vercel.app)**
+
 FairMate is five-minute chess against `qwen3.7-max` on 0G. Model moves are legal-gated by `chess.js`, verified through 0G Router, committed to a public game journal, and tied to a real mainnet payout.
 
 Entry is free. Players never stake funds. The prize comes from a builder-funded contract.

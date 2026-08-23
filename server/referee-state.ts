@@ -1,6 +1,6 @@
 import { Chess } from "chess.js";
 import { canonicalHash } from "../shared/canonical.js";
-import type { GameResult, GameState, PlyRecord, TxRef } from "../shared/protocol.js";
+import type { GameResult, GameState, Mover, PlyRecord, TxRef } from "../shared/protocol.js";
 import { newAction, type PendingChainAction } from "./fairmate-store.js";
 import { startTurn, stopClock } from "./game-clock.js";
 
@@ -21,6 +21,26 @@ export function resultEnum(result: GameResult): number {
       : result === "draw"
         ? 3
         : 4;
+}
+
+/**
+ * Decides how a clock expiry settles a game. Chess rule: whoever runs out of
+ * time loses — with one fairness carve-out taken from the lichess precedent
+ * for zero-move games. A player who never made a single move consumed no
+ * paid inference and revealed nothing, so their game aborts (stake refunded)
+ * instead of silently counting as a loss. After the first move the clock is
+ * binding for both sides.
+ */
+export function flagFallOutcome(
+  expired: Mover,
+  moveCount: number,
+): { result: GameResult; reason: string } {
+  if (expired === "player" && moveCount === 0) {
+    return { result: "aborted", reason: "clock ran out before the first move, game aborted" };
+  }
+  return expired === "player"
+    ? { result: "model_win", reason: "player flag fell, 5+0 timeout" }
+    : { result: "player_win", reason: "Qwen flag fell, 5+0 timeout" };
 }
 
 /**

@@ -31,10 +31,10 @@ const chain = {
 
 const pot: PotInfo = {
   chain,
-  potBalanceOg: "2.90",
+  potBalanceOg: "3.10",
   entryFeeOg: "0.1",
-  perWinBountyOg: "0.1",
-  dailyCapOg: "0.5",
+  perWinBountyOg: "0.2",
+  dailyCapOg: "0.6",
   paidInWindowOg: "0.0",
   windowStart: Date.now() - 3_600_000,
   refereeAddress: "0x9fB13bD57b1b31d25E2d2b2B04cEea50e0B256C8",

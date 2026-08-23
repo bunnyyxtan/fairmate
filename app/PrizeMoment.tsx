@@ -4,12 +4,14 @@ import { explorerUrl } from "./api";
 
 export function PrizeMoment({
   game,
+  anchorsPending,
   onReplay,
   onLobby,
   onDownload,
   downloadError,
 }: {
   game: GameState;
+  anchorsPending: number;
   onReplay: () => void;
   onLobby: () => void;
   onDownload: () => void;
@@ -38,7 +40,9 @@ export function PrizeMoment({
           </b><small>{!payable ? "No payout address was supplied when this game began." : award?.error ?? award?.txHash ?? "Waiting for chain confirmation…"}</small></span></li>
         </ul>
         {award?.txHash && <a className="cl-claim claimed" href={explorerUrl(game.chain.explorer, "tx", award.txHash)} target="_blank" rel="noreferrer">View award transaction <ExternalLink /></a>}
-        <button type="button" className="evidence-link" onClick={onDownload}><Download /> Download game evidence</button>
+        <button type="button" className="evidence-link" onClick={onDownload} disabled={anchorsPending > 0}>
+          <Download /> {anchorsPending > 0 ? `Evidence unlocks after chain sync · ${anchorsPending} tx left` : "Download game evidence"}
+        </button>
         {downloadError && <p className="api-error" role="alert">{downloadError}</p>}
         <div className="cl-prize-actions"><button type="button" onClick={onReplay}>Play again</button><button type="button" onClick={onLobby}>Return to lobby</button></div>
       </div>

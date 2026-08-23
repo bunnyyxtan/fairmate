@@ -69,6 +69,7 @@ function HonestResult({
     aborted: "GAME ABORTED.",
   };
   const result = game.result === "ongoing" || game.result === "player_win" ? "aborted" : game.result;
+  const anchorsLeft = pendingAnchorCount(game);
   return (
     <section className="result-screen honest-result">
       <span className="cl-kicker">{result === "aborted" ? <TriangleAlert /> : <ShieldCheck />} Final result</span>
@@ -102,7 +103,9 @@ function HonestResult({
       {game.stake && game.result === "model_win" && (
         <p>Your {game.stake.amountOg} OG entry stake stays in the pot, as per the prize rules.</p>
       )}
-      <button type="button" className="evidence-link" onClick={onDownload}><Download /> Download game evidence</button>
+      <button type="button" className="evidence-link" onClick={onDownload} disabled={anchorsLeft > 0}>
+        <Download /> {anchorsLeft > 0 ? `Evidence unlocks after chain sync · ${anchorsLeft} tx left` : "Download game evidence"}
+      </button>
       {downloadError && <p className="api-error" role="alert">{downloadError}</p>}
       <div className="result-actions"><button type="button" onClick={onReplay}>Play again</button><button type="button" onClick={onLobby}>Return to lobby</button></div>
     </section>
@@ -142,6 +145,20 @@ export function GameView({
     return () => window.clearInterval(timer);
   }, [ongoing]);
 
+  // A staked game keeps running if the tab closes — the clock is binding once
+  // the first move is played (zero-move games abort with a refund instead).
+  // Warn before the player walks away from live money.
+  const unloadGuard = ongoing && Boolean(game.stake) && game.sans.length > 0;
+  useEffect(() => {
+    if (!unloadGuard) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [unloadGuard]);
+
   const phase = matchPhase(game, pendingAction);
   const phaseStartedAt = useRef(Date.now());
   const lastPhase = useRef<Phase | null>(null);
@@ -164,7 +181,7 @@ export function GameView({
     });
   };
 
-  if (game.result === "player_win") return <PrizeMoment game={game} onReplay={onReplay} onLobby={onLobby} onDownload={downloadEvidence} downloadError={downloadError} />;
+  if (game.result === "player_win") return <PrizeMoment game={game} anchorsPending={pendingAnchorCount(game)} onReplay={onReplay} onLobby={onLobby} onDownload={downloadEvidence} downloadError={downloadError} />;
   if (game.result !== "ongoing") return <HonestResult game={game} onReplay={onReplay} onLobby={onLobby} onDownload={downloadEvidence} downloadError={downloadError} />;
 
   const busy = phase !== "player_turn";
@@ -260,6 +277,7 @@ export function GameView({
               <p>
                 {game.stake ? <>Staked <b>{game.stake.amountOg} OG</b> · a win pays <b>{bounty ?? "0.2"} OG</b> to{" "}</> : <>Playing for <b>{bounty ?? "0.2"} OG</b> · a journal-recorded win pays{" "}</>}
                 <code>{shortAddress(game.playerAddress)}</code> automatically.
+                {game.stake && <> Leaving does not pause your clock.</>}
               </p>
             ) : (
               <p>
@@ -296,7 +314,13 @@ export function GameView({
       {resignOpen && (
         <Dialog titleId="resign-title" onClose={() => setResignOpen(false)} className="cl-resign-overlay">
           <span>Leave the table</span><h2 id="resign-title">CALL IT A<br />ROUND?</h2>
-          <p>Your game will be closed without a prize and the result recorded honestly.</p>
+          <p>
+            {game.sans.length === 0
+              ? game.stake
+                ? "No moves yet, so the game aborts and your stake is refunded automatically."
+                : "No moves yet, so the game simply aborts."
+              : "Your game will be closed without a prize and the result recorded honestly."}
+          </p>
           <div className="cl-resign-actions"><button type="button" onClick={() => setResignOpen(false)}>Keep playing</button><button type="button" disabled={submitting} onClick={() => { setResignOpen(false); onResign(); }}>Resign game</button></div>
         </Dialog>
       )}

@@ -48,6 +48,7 @@ export function Lobby({
   const [validation, setValidation] = useState("");
   const [walletNote, setWalletNote] = useState("");
   const [staking, setStaking] = useState(false);
+  const [copiedPot, setCopiedPot] = useState(false);
   const model = pot.model || "Attested model";
   const fee = pot.entryFeeOg;
   const bounty = pot.perWinBountyOg;
@@ -98,6 +99,8 @@ export function Lobby({
     try {
       await navigator.clipboard.writeText(pot.chain.potAddress);
       setWalletNote("ChallengePot address copied.");
+      setCopiedPot(true);
+      window.setTimeout(() => setCopiedPot(false), 1800);
     } catch {
       setWalletNote("Copy failed, use the explorer link instead.");
     }
@@ -146,7 +149,7 @@ export function Lobby({
   }
 
   const hint = prizeMode
-    ? `Win and ${bounty} OG lands on this address: your ${fee} OG stake back plus the bounty. Draws and aborted games refund the stake automatically.`
+    ? `Win and ${bounty} OG lands on this address: your ${fee} OG stake back plus the bounty. Draws and aborted games refund the stake automatically. No move made? It aborts and refunds. After your first move the clock binds, a flag fall keeps the stake in the pot.`
     : `No wallet needed. Wins are recorded on-chain for the record, prize games stake ${fee} OG and pay ${bounty} OG on a win.`;
 
   return (
@@ -195,7 +198,9 @@ export function Lobby({
                     Send exactly {fee} OG from your payout wallet to the ChallengePot, then paste the transaction hash.
                   </p>
                   <div className="cl-stake-actions">
-                    <button type="button" onClick={() => void copyPotAddress()} disabled={busy}><Copy size={14} /> Copy pot address</button>
+                    <button type="button" className={copiedPot ? "is-copied" : ""} onClick={() => void copyPotAddress()} disabled={busy}>
+                      {copiedPot ? <><CheckCircle2 size={14} /> Copied</> : <><Copy size={14} /> Copy pot address</>}
+                    </button>
                     {wallet && (
                       <button type="button" className="is-wallet" onClick={() => void stakeWithWallet()} disabled={busy || staking}>
                         <Wallet size={14} /> {staking ? "Waiting for your wallet…" : `Stake ${fee} OG with browser wallet`}
@@ -224,7 +229,7 @@ export function Lobby({
             )}
           </form>
           {error && <p className="api-error" role="alert">{error}</p>}
-          <ul><li><ShieldCheck /> {pot.verificationScheme === "router-teetls" ? "Router-verified TeeTLS moves" : "Browser-verified TeeML moves"}</li><li><Clock3 /> 5+0 blitz clocks</li><li><Trophy /> Win pays {bounty} OG, draws refund the stake</li></ul>
+          <ul><li><ShieldCheck /> {pot.verificationScheme === "router-teetls" ? "Router-verified TeeTLS moves" : "Browser-verified TeeML moves"}</li><li><Clock3 /> 5+0 blitz clocks, binding after your first move</li><li><Trophy /> Win pays {bounty} OG, draws refund the stake</li></ul>
         </article>
       </section>
     </>

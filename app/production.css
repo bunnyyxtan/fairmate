@@ -49,6 +49,8 @@ button:disabled { cursor: not-allowed !important; opacity: .58; }
 .evidence-link:active { transform: translateY(2px); box-shadow: 1px 1px 0 var(--ink); }
 .evidence-link:hover { background: #ffe94d; }
 .evidence-link:active { transform: translateY(2px); }
+.evidence-link[disabled] { opacity: .55; cursor: not-allowed; }
+.evidence-link[disabled]:hover { background: var(--page); transform: none; box-shadow: 4px 4px 0 var(--ink); }
 .evidence-link svg { width: 15px; }
 .attestation-warning { width: min(900px, calc(100% - 32px)); display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 15px; margin: 0 auto 55px; padding: 18px; border: 2px solid #20140e; border-radius: 0px; background: #ffe94d; box-shadow: 6px 6px 0 #20140e; }
 .attestation-warning > svg { width: 28px; }

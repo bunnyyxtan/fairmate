@@ -26,6 +26,7 @@ import { createClock, stopClock, tickClock } from "./game-clock.js";
 import {
   applyPly,
   chessFor,
+  flagFallOutcome,
   planEnd,
   voidPendingAward,
   voidPendingRefund,
@@ -115,10 +116,8 @@ async function expireLocked(
   const expired = tickClock(state.clock, now);
   if (!expired) return false;
   const chess = chessFor(state);
-  const result = expired === "player" ? "model_win" : "player_win";
-  const reason =
-    expired === "player" ? "player flag fell, 5+0 timeout" : "Qwen flag fell, 5+0 timeout";
-  const action = planEnd(state, chess, result, reason);
+  const outcome = flagFallOutcome(expired, state.sans.length);
+  const action = planEnd(state, chess, outcome.result, outcome.reason);
   await store.save(row.gameId, state, [...row.pendingActions, action], client);
   return true;
 }
@@ -505,7 +504,13 @@ export async function resign(
       throw new RefereeError(409, "game already over");
     }
     const chess = chessFor(row.state);
-    const action = planEnd(row.state, chess, "model_win", "resignation");
+    // Resigning before the first move is an abort, not a loss: no inference
+    // was consumed, so a staked player gets the entry refunded (same rule as
+    // a zero-move flag fall).
+    const action =
+      row.state.sans.length === 0
+        ? planEnd(row.state, chess, "aborted", "no moves played, game aborted by the player")
+        : planEnd(row.state, chess, "model_win", "resignation");
     return store.save(gameId, row.state, [...row.pendingActions, action], client);
   });
   background(`resign anchor ${gameId}`, drainPendingActions());

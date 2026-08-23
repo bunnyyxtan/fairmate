@@ -147,6 +147,7 @@ export default function App() {
         <span>Fair-play rules</span><h2 id="rules-title">THE MODEL CAN'T<br />SWITCH THE GAME.</h2>
         <p>The model, provider identity, verification scheme and move journal come from the live service configuration. FairMate recomputes every evidence property available to the browser and states the Router trust boundary explicitly.</p>
         <p>Prize games stake {pot.entryFeeOg} OG into the pot up front. A journal-recorded win pays {pot.perWinBountyOg} OG back to your wallet, a draw or aborted game refunds the stake automatically, a loss leaves it in the pot. Practice games are free.</p>
+        <p>If you never make a move, the game aborts and your stake comes back. Once you move, the 5+0 clock is binding for both sides: running out of time is a loss even if you close the tab, and if the model runs out of time, you win the full payout.</p>
         <dl className="rules-data"><div><dt>Model</dt><dd>{pot.model}</dd></div><div><dt>Provider</dt><dd>{pot.provider}</dd></div><div><dt>Proof mode</dt><dd>{pot.verificationScheme}</dd></div><div><dt>Checked</dt><dd>{attestation ? new Date(attestation.verifiedAt).toLocaleString() : "Unavailable"}</dd></div></dl>
         {attestation?.trustBoundary && <p className="rules-trust">{attestation.trustBoundary}</p>}
         <a href={pot.chain.explorer} target="_blank" rel="noreferrer">Inspect live contracts <ExternalLink /></a>

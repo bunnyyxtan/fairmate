@@ -160,6 +160,7 @@ The browser recomputes request/response hashes, validates trace consistency, con
 
 - Entry is a `0.1 OG` stake per prize game, sent as a plain transfer to the pot from the payout wallet. The referee verifies it on-chain at admission — exact amount, right sender, right destination, mined and successful — and burns the transaction hash so it can never admit a second game. `Funded` / `BountyConfigured` / `Defunded` events keep the economics public; stake refunds are `Defunded` events back to the player.
 - Refunds are driven by the same durable outbox as every other anchor: a reverted refund retries up to 3 times with a one-minute backoff. A refund that still fails, or a transfer that never admitted a game (wrong amount, wrong sender), stays in the pot and is returned manually by the pot owner via `defund`.
+- Zero-move fairness (the lichess rule): a prize game that ends with no moves played — flag fall or resign alike — aborts and refunds the stake, because no paid inference was consumed. After the first move the 5+0 clock is binding for both sides: a player flag fall leaves the stake in the pot even if the tab is closed (disclosed up front and warned on leave), and a model flag fall pays the player the full win bounty.
 - `award(gameId)` — callable by **anyone**. Pays the per-win bounty (`0.2 OG`: stake back + bounty) to the player address recorded in the journal at game start, only for a journal-recorded `PlayerWin`, only once per game, within a rolling 24h cap.
 - Live drill (`pnpm run drill -- --network=mainnet`, results in `evidence/pot-drill.mainnet.json`): a real payout to a throwaway address, followed by live-revert proofs for double-award, model-win, no-player, cap-exceeded, ongoing-game, unknown-game, stranger-write, post-end-commit and receiptless-model-move.
 - Refund drill (`pnpm run drill:refund -- --network=mainnet`, results in `evidence/refund-drill.mainnet.json`): a real staked game on the production site, deliberately abandoned until the sweep aborts it; the durable outbox then returns the stake — verified live via the `Defunded` event, exact balance reconciliation and the game's downloadable evidence.
@@ -175,6 +176,7 @@ The browser recomputes request/response hashes, validates trace consistency, con
 | `evidence/refund-drill.mainnet.json` | Live draw/abort stake refund on the production site | real staked game + `Defunded` event + exact balance reconciliation |
 | `evidence/selfplay.router.mainnet.json` | Dense Router TeeTLS evidence without chain writes | local byte/hash/trace/commitment checks |
 | `docs/architecture.svg` | Standalone production architecture and trust boundaries | public system flow at 1600×900 |
+| `docs/THREAT-MODEL.md` | attack → defense → proof mapping for every money path | adversarial review with explicit accepted risks |
 | `docs/submission.md`, `docs/x-launch.md` | Submission links, demo checklist and launch copy | exact explorer URLs; placeholders only for unpublished URLs |
 | `evidence/deployment.json`, `sample-game.json`, `pot-drill.json` | Archived Galileo development proof | explicitly excluded from mainnet submission claims |
 
@@ -186,6 +188,8 @@ The browser recomputes request/response hashes, validates trace consistency, con
 
 **Trusted operationally:** the referee controls clocks and submits the `chess.js`-derived result. It cannot redirect or double-pay a recorded win, but it could refuse to submit one. That refusal is externally auditable from the downloaded SAN/FEN evidence and public move journal.
 
+**Adversarial review:** [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) maps every money-moving and result-integrity attack to its defense and to the artifact that proves it (test, live drill or on-chain event), and states the accepted risks explicitly.
+
 ## Wave 3 progress
 
 - **2026-08-22:** working Galileo prototype; live journal, direct TeeML receipts, pot-binding drill and full evidence verifier
@@ -194,6 +198,7 @@ The browser recomputes request/response hashes, validates trace consistency, con
 - **2026-08-23:** Aristotle contracts funded and configured; Router Payment Vault funded; full 31-ply sample paid `0.1 OG`; **581/581** mainnet evidence checks passed
 - **2026-08-24:** Entry-stake era: prize games stake `0.1 OG`, wins pay `0.2 OG` (stake back + bounty), draws and aborts auto-refund via `defund` ([config tx](https://chainscan.0g.ai/tx/0xb003262c859843271b44581dbbe6b140b4045778f7dbaf1353604a244d3d0226))
 - **2026-08-24:** Refund path proven live: a staked production game was abandoned, auto-aborted and refunded `0.1 OG` on Mainnet ([refund tx](https://chainscan.0g.ai/tx/0x39788429d01bf77434dc80f21ed3963872f0114ed14be76ffb9f3f3c4db85c80))
+- **2026-08-24:** Fairness hardening: zero-move games abort with a refund instead of settling as silent losses, resign-before-move refunds too, binding-clock rules disclosed in the lobby and warned on tab close, evidence download auto-unlocks after chain sync, full adversarial [threat model](docs/THREAT-MODEL.md) published
 
 ## Scripts
 

@@ -162,6 +162,7 @@ The browser recomputes request/response hashes, validates trace consistency, con
 - Refunds are driven by the same durable outbox as every other anchor: a reverted refund retries up to 3 times with a one-minute backoff. A refund that still fails, or a transfer that never admitted a game (wrong amount, wrong sender), stays in the pot and is returned manually by the pot owner via `defund`.
 - `award(gameId)` — callable by **anyone**. Pays the per-win bounty (`0.2 OG`: stake back + bounty) to the player address recorded in the journal at game start, only for a journal-recorded `PlayerWin`, only once per game, within a rolling 24h cap.
 - Live drill (`pnpm run drill -- --network=mainnet`, results in `evidence/pot-drill.mainnet.json`): a real payout to a throwaway address, followed by live-revert proofs for double-award, model-win, no-player, cap-exceeded, ongoing-game, unknown-game, stranger-write, post-end-commit and receiptless-model-move.
+- Refund drill (`pnpm run drill:refund -- --network=mainnet`, results in `evidence/refund-drill.mainnet.json`): a real staked game on the production site, deliberately abandoned until the sweep aborts it; the durable outbox then returns the stake — verified live via the `Defunded` event, exact balance reconciliation and the game's downloadable evidence.
 
 ## Evidence inventory
 
@@ -171,6 +172,7 @@ The browser recomputes request/response hashes, validates trace consistency, con
 | `evidence/bridge.mainnet.json` | Public Base → 0G funding route and source transaction | sanitized LI.FI/Gas.zip execution fields + public explorer transaction |
 | `evidence/sample-game.mainnet.json` | Full Qwen Router game with exact receipts and journal transactions | local recomputation + SAN replay + live receipt/event checks |
 | `evidence/pot-drill.mainnet.json` | Pot/journal positive and negative binding paths | real txs + recorded-block `eth_call` reverts |
+| `evidence/refund-drill.mainnet.json` | Live draw/abort stake refund on the production site | real staked game + `Defunded` event + exact balance reconciliation |
 | `evidence/selfplay.router.mainnet.json` | Dense Router TeeTLS evidence without chain writes | local byte/hash/trace/commitment checks |
 | `docs/architecture.svg` | Standalone production architecture and trust boundaries | public system flow at 1600×900 |
 | `docs/submission.md`, `docs/x-launch.md` | Submission links, demo checklist and launch copy | exact explorer URLs; placeholders only for unpublished URLs |
@@ -191,6 +193,7 @@ The browser recomputes request/response hashes, validates trace consistency, con
 - **2026-08-23:** architecture migrated to Aristotle Mainnet + Qwen 3.7 Max through 0G Router with explicit TeeTLS trust semantics, price pins, cost accounting and fail-closed tests
 - **2026-08-23:** Aristotle contracts funded and configured; Router Payment Vault funded; full 31-ply sample paid `0.1 OG`; **581/581** mainnet evidence checks passed
 - **2026-08-24:** Entry-stake era: prize games stake `0.1 OG`, wins pay `0.2 OG` (stake back + bounty), draws and aborts auto-refund via `defund` ([config tx](https://chainscan.0g.ai/tx/0xb003262c859843271b44581dbbe6b140b4045778f7dbaf1353604a244d3d0226))
+- **2026-08-24:** Refund path proven live: a staked production game was abandoned, auto-aborted and refunded `0.1 OG` on Mainnet ([refund tx](https://chainscan.0g.ai/tx/0x39788429d01bf77434dc80f21ed3963872f0114ed14be76ffb9f3f3c4db85c80))
 
 ## Scripts
 
@@ -200,6 +203,7 @@ The browser recomputes request/response hashes, validates trace consistency, con
 | `pnpm run verify -- --file=…` | verify one downloaded or archived evidence bundle using its `chainId` |
 | `pnpm run deploy -- --network=mainnet` | deploy, configure and fund the production journal + pot |
 | `pnpm run drill -- --network=mainnet` | live pot-binding drill |
+| `pnpm run drill:refund -- --network=mainnet` | live stake-refund drill on the production site |
 | `pnpm run selfplay` | Qwen 3.7 Max Mainnet Router self-play evidence, no chain writes |
 | `pnpm run compile` | solc → `build/FairMate.json` |
 | `pnpm run balance -- --network=mainnet` | referee chain balance (`CHECK_DIRECT_LEDGER=1` for archived direct Compute) |

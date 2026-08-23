@@ -17,6 +17,8 @@
     "deploy": "tsx scripts/deploy.ts",
     "predrill": "pnpm run compile",
     "drill": "tsx scripts/pot-drill.ts",
+    "predrill:refund": "pnpm run compile",
+    "drill:refund": "tsx scripts/refund-drill.ts",
     "selfplay": "tsx scripts/selfplay-attested.ts",
     "preverify": "pnpm run compile",
     "verify": "tsx scripts/verify-evidence.ts",

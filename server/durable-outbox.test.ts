@@ -422,6 +422,50 @@ test("reverted start on a staked game still refunds the stake", async () => {
   assert.deepEqual(fake.prepares.map((call) => call.kind), ["start", "refund"]);
 });
 
+test("a reverted refund retries with backoff and succeeds on a later attempt", async () => {
+  const store = new FairmateStore();
+  const fake = new FakeChain();
+  fake.revertKinds.add("refund");
+  const gameId = id();
+  const value = stakedState(gameId);
+  const endAction = planEnd(value, new Chess(), "draw", "draw agreed");
+  await insert(store, value, [endAction]);
+  await new DurableOutbox(store, fake, { refundRetryMs: 60_000 }).drain();
+  const afterFirst = await store.get(gameId);
+  assert.equal(afterFirst?.state.refundTx?.status, "pending");
+  const retry = afterFirst?.pendingActions[0];
+  assert.ok(retry && retry.kind === "refund");
+  assert.equal(Number(retry.payload.attempt), 2);
+  assert.ok(Number(retry.payload.notBefore) > Date.now());
+  // A drain inside the backoff window leaves the deferred retry untouched.
+  await new DurableOutbox(store, fake, { refundRetryMs: 60_000 }).drain();
+  assert.equal((await store.get(gameId))?.pendingActions.length, 1);
+  // Once due (and the pot recovered), the retry pays out with a fresh nonce.
+  fake.revertKinds.delete("refund");
+  retry.payload.notBefore = 0;
+  await store.save(gameId, afterFirst.state, [retry]);
+  await new DurableOutbox(store, fake, { refundRetryMs: 60_000 }).drain();
+  const final = await store.get(gameId);
+  assert.equal(final?.state.refundTx?.status, "confirmed");
+  assert.deepEqual(final?.pendingActions, []);
+});
+
+test("refund attempts are bounded and end in an honest terminal failure", async () => {
+  const store = new FairmateStore();
+  const fake = new FakeChain();
+  fake.revertKinds.add("refund");
+  const gameId = id();
+  const value = stakedState(gameId);
+  const endAction = planEnd(value, new Chess(), "draw", "draw agreed");
+  await insert(store, value, [endAction]);
+  await new DurableOutbox(store, fake, { refundRetryMs: 0 }).drain();
+  const row = await store.get(gameId);
+  assert.equal(row?.state.endTx?.status, "confirmed");
+  assert.equal(row?.state.refundTx?.status, "failed");
+  assert.deepEqual(row?.pendingActions, []);
+  assert.equal(fake.prepares.filter((call) => call.kind === "refund").length, 3);
+});
+
 test("exact journal verifier rejects start identity and move commitment drift", () => {
   const value = state(id());
   const startFenHash = canonicalHash(value.fen);

@@ -25,7 +25,7 @@ export type StakeCheck =
 export function checkStakeFacts(
   facts: StakeTxFacts | null,
   expectedFrom: string,
-  minWei: bigint,
+  requiredWei: bigint,
   potAddress: string,
   network: string,
 ): StakeCheck {
@@ -65,11 +65,14 @@ export function checkStakeFacts(
         "stake must be sent from your payout address, so the prize and any refund return to the wallet that paid",
     };
   }
-  if (facts.valueWei < minWei) {
+  if (facts.valueWei !== requiredWei) {
+    // Exact amount only: the win payout is a fixed configured bounty, so an
+    // overpaid stake would be silently under-returned on a win. Refusing it
+    // here keeps the advertised economics exactly true.
     return {
       ok: false,
       retryable: false,
-      reason: `stake of ${formatEther(facts.valueWei)} OG is below the ${formatEther(minWei)} OG entry fee`,
+      reason: `stake must be exactly ${formatEther(requiredWei)} OG, this transaction sent ${formatEther(facts.valueWei)} OG, send a fresh transfer for the exact amount`,
     };
   }
   return { ok: true, amountOg: formatEther(facts.valueWei), blockNumber: facts.blockNumber };

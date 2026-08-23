@@ -619,7 +619,7 @@ export async function recoverReferee(): Promise<void> {
         // The queue is being cleared, so any unpaid award or refund can never
         // pay out; mark them failed instead of leaving forever-pending money.
         voidPendingAward(state, "award cancelled: recovery freeze, journal and local state disagree");
-        voidPendingRefund(state, "refund cancelled: recovery freeze, journal and local state disagree");
+        voidPendingRefund(state, "refund cancelled: recovery freeze, journal and local state disagree, stake recoverable by the pot owner");
         state.updatedAt = Date.now();
         await store.save(gameId, state, [], client);
       });

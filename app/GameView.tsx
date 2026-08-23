@@ -94,7 +94,7 @@ function HonestResult({
             )}
           </p>
         ) : game.refundTx?.status === "failed" ? (
-          <p className="api-error" role="alert">Stake refund failed: {game.refundTx.error}</p>
+          <p className="api-error" role="alert">Stake refund failed: {game.refundTx.error}. The pot owner can still return it manually.</p>
         ) : (
           <p>Your {game.stake.amountOg} OG stake refund is queued and settles in the background.</p>
         )

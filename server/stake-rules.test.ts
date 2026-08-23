@@ -27,10 +27,11 @@ test("a mined, exact stake from the payout address is accepted", () => {
   assert.equal(check.blockNumber, 42);
 });
 
-test("overpaying is accepted and the full amount is recorded for refunds", () => {
+test("overpaying is rejected so the fixed 0.2 OG award can never underpay a winner", () => {
   const check = checkStakeFacts(facts({ valueWei: parseEther("0.25") }), PLAYER, MIN, POT, "t");
-  assert.ok(check.ok);
-  assert.equal(check.amountOg, "0.25");
+  assert.ok(!check.ok && !check.retryable);
+  assert.match(check.reason, /exactly 0\.1/);
+  assert.match(check.reason, /0\.25/);
 });
 
 test("address comparisons are case-insensitive", () => {
@@ -80,6 +81,6 @@ test("a stake from a third-party wallet is rejected", () => {
 test("an underpaid stake is rejected with both amounts named", () => {
   const check = checkStakeFacts(facts({ valueWei: parseEther("0.09") }), PLAYER, MIN, POT, "t");
   assert.ok(!check.ok && !check.retryable);
+  assert.match(check.reason, /exactly 0\.1/);
   assert.match(check.reason, /0\.09/);
-  assert.match(check.reason, /0\.1/);
 });

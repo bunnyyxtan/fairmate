@@ -289,7 +289,7 @@ export interface PotReads {
 export async function verifyStakeDeposit(
   txHash: string,
   expectedFrom: string,
-  minWei: bigint,
+  requiredWei: bigint,
 ): Promise<StakeCheck> {
   const [tx, receipt] = await Promise.all([
     provider.getTransaction(txHash),
@@ -306,7 +306,7 @@ export async function verifyStakeDeposit(
         blockNumber: receipt?.blockNumber ?? null,
       }
     : null;
-  return checkStakeFacts(facts, expectedFrom, minWei, deployment.potAddress, net.displayName);
+  return checkStakeFacts(facts, expectedFrom, requiredWei, deployment.potAddress, net.displayName);
 }
 
 let potCache: { at: number; value: PotReads } | null = null;

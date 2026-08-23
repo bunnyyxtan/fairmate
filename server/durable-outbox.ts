@@ -74,13 +74,18 @@ function callFor(action: PendingChainAction): PreparedChainCall {
   }
 }
 
+/** Transient pot conditions get this many broadcasts before a refund dies. */
+const MAX_REFUND_ATTEMPTS = 3;
+
 /** Owner-signed return of the full stake to the wallet that paid it. */
-function refundAction(state: GameState): PendingChainAction {
+function refundAction(state: GameState, attempt = 1, notBefore = 0): PendingChainAction {
   if (!state.stake) throw new Error(`refund planned for unstaked game ${state.gameId}`);
   return newAction("refund", {
     gameId: state.gameId,
     to: state.stake.from,
     amountWei: ethers.parseEther(state.stake.amountOg).toString(),
+    attempt,
+    notBefore,
   });
 }
 
@@ -90,10 +95,15 @@ function refundAction(state: GameState): PendingChainAction {
  * only fills in tx references. A definitive revert fails the game closed.
  */
 export class DurableOutbox {
+  private readonly refundRetryMs: number;
+
   constructor(
     private readonly store: FairmateStore,
     private readonly chain: OutboxChain,
-  ) {}
+    options?: { refundRetryMs?: number },
+  ) {
+    this.refundRetryMs = options?.refundRetryMs ?? 60_000;
+  }
 
   private async applyConfirmed(
     gameId: string,
@@ -181,10 +191,23 @@ export class DurableOutbox {
         state.awardTx = { ...state.awardTx, ...failed };
         queue = fresh.pendingActions.slice(1);
       } else if (action.kind === "refund") {
-        // A definitively reverted refund (e.g. drained pot) is surfaced
-        // honestly; it does not cascade into the journal record.
-        state.refundTx = { ...state.refundTx, ...failed };
-        queue = fresh.pendingActions.slice(1);
+        const attempt = Number(action.payload.attempt ?? 1);
+        if (attempt < MAX_REFUND_ATTEMPTS) {
+          // A reverted defund can be a transient pot condition (for example a
+          // momentary balance shortfall between awards and stake inflows), so
+          // the obligation is retried after a backoff instead of dying on the
+          // first revert. The retry is a fresh action with a fresh nonce.
+          queue = [
+            ...fresh.pendingActions.slice(1),
+            refundAction(state, attempt + 1, Date.now() + this.refundRetryMs),
+          ];
+        } else {
+          // Out of attempts: surfaced honestly; it does not cascade into the
+          // journal record, and the operator can still return the stake with
+          // a manual owner defund.
+          state.refundTx = { ...state.refundTx, ...failed };
+          queue = fresh.pendingActions.slice(1);
+        }
       } else if (action.kind === "start") {
         state.startTx = failed;
         state.status = "fault";
@@ -254,7 +277,18 @@ export class DurableOutbox {
           }
         }
         if (backfilled) continue;
-        const row = pending[0];
+        const row = pending.find((candidate) => {
+          const head = candidate.pendingActions[0];
+          if (!head) return true;
+          // A deferred, still-unsigned refund retry waits out its backoff.
+          // Once signed it owns a wallet nonce and must proceed regardless,
+          // or every later nonce would stall behind the gap.
+          return !(
+            head.kind === "refund" &&
+            !head.rawTx &&
+            Number(head.payload.notBefore ?? 0) > Date.now()
+          );
+        });
         const action = row?.pendingActions[0];
         if (!row || !action) return;
         const fromBlock = row.state.startTx.blockNumber ?? 0;

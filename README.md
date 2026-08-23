@@ -60,7 +60,7 @@ Production also fails closed unless Router reports the exact pinned model/provid
 | Model | `qwen3.7-max` |
 | Provider identity | `0xF203A388e9E70F09ece38046a6D40a89cf896309` |
 | Game | Standard chess, White vs Black, 5+0 blitz |
-| Entry | `0.1 OG` staked to the ChallengePot before a prize game (verified + replay-locked at admission) |
+| Entry | exactly `0.1 OG` staked to the ChallengePot before a prize game (verified + replay-locked at admission) |
 | Prize | `0.2 OG` per player win: the `0.1 OG` stake back plus a `0.1 OG` bounty |
 | Refund | draws and aborted games return the stake via `defund`, visible as `Defunded` events |
 | Verification | **581/581 checks passed** against the mainnet evidence set |
@@ -158,7 +158,8 @@ The browser recomputes request/response hashes, validates trace consistency, con
 
 ## ChallengePot rules
 
-- Entry is a `0.1 OG` stake per prize game, sent as a plain transfer to the pot from the payout wallet. The referee verifies it on-chain at admission and burns the transaction hash so it can never admit a second game. `Funded` / `BountyConfigured` / `Defunded` events keep the economics public; stake refunds are `Defunded` events back to the player.
+- Entry is a `0.1 OG` stake per prize game, sent as a plain transfer to the pot from the payout wallet. The referee verifies it on-chain at admission — exact amount, right sender, right destination, mined and successful — and burns the transaction hash so it can never admit a second game. `Funded` / `BountyConfigured` / `Defunded` events keep the economics public; stake refunds are `Defunded` events back to the player.
+- Refunds are driven by the same durable outbox as every other anchor: a reverted refund retries up to 3 times with a one-minute backoff. A refund that still fails, or a transfer that never admitted a game (wrong amount, wrong sender), stays in the pot and is returned manually by the pot owner via `defund`.
 - `award(gameId)` — callable by **anyone**. Pays the per-win bounty (`0.2 OG`: stake back + bounty) to the player address recorded in the journal at game start, only for a journal-recorded `PlayerWin`, only once per game, within a rolling 24h cap.
 - Live drill (`pnpm run drill -- --network=mainnet`, results in `evidence/pot-drill.mainnet.json`): a real payout to a throwaway address, followed by live-revert proofs for double-award, model-win, no-player, cap-exceeded, ongoing-game, unknown-game, stranger-write, post-end-commit and receiptless-model-move.
 

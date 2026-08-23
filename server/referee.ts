@@ -146,7 +146,7 @@ export async function createGame(ip: string, playerAddress?: string): Promise<Cr
   if (!compute.ready || !compute.selection) {
     throw new RefereeError(
       503,
-      compute.bootError ?? "TEE attestation still in progress — try again shortly",
+      compute.bootError ?? "TEE attestation still in progress, try again shortly",
     );
   }
   if (playerAddress) {

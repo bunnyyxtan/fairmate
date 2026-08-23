@@ -175,7 +175,7 @@ export function GameView({
     model_thinking: {
       small: `Move ${String(game.plies.length + 1).padStart(2, "0")} · ${game.model}'s turn`,
       title: "PROVABLE REPLY.",
-      body: "Attested inference is in progress and burning Qwen's clock. Verified replies typically land in 15–60 s, occasionally up to 2 min.",
+      body: "Attested inference is in progress and burning Qwen's clock. Verified replies typically land in a few seconds, occasionally up to 30 s.",
     },
     finalizing: {
       small: "Final record · closing",
@@ -197,7 +197,7 @@ export function GameView({
     },
     {
       label: `${game.model} thinking on 0G`,
-      hint: "TeeTLS-verified · typically 15–60 s, up to 2 min",
+      hint: "TeeTLS-verified · typically 2-10 s, up to 30 s",
       state: phase === "model_thinking" ? "active" : "todo",
     },
     {

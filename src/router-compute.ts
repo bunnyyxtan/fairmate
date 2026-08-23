@@ -19,6 +19,13 @@ export const ROUTER_MODEL = FAIRMATE_ROUTER_MODEL;
 export const ROUTER_PROVIDER = FAIRMATE_ROUTER_PROVIDER;
 const MAX_OUTPUT_TOKENS = Number(process.env.FAIRMATE_MAX_OUTPUT_TOKENS ?? 800);
 const REQUEST_TIMEOUT_MS = Number(process.env.FAIRMATE_MODEL_TIMEOUT_MS ?? 90_000);
+const THINKING_MODE = (() => {
+  const raw = (process.env.FAIRMATE_THINKING ?? "off").toLowerCase();
+  if (raw !== "off" && raw !== "low" && raw !== "medium" && raw !== "high") {
+    throw new Error(`Invalid FAIRMATE_THINKING '${raw}'; expected off|low|medium|high`);
+  }
+  return raw;
+})();
 export const ROUTER_MAX_PROMPT_PRICE_USD = FAIRMATE_ROUTER_MAX_PROMPT_PRICE_USD;
 export const ROUTER_MAX_COMPLETION_PRICE_USD = FAIRMATE_ROUTER_MAX_COMPLETION_PRICE_USD;
 
@@ -230,14 +237,24 @@ export async function routerCompletion(
   temperature: number,
 ): Promise<RouterCompletion> {
   const apiKey = requireSecret(process.env, "OG_ROUTER_API_KEY");
+  // Thinking mode dominates move latency and cost: benchmarked on the pinned
+  // provider, medium effort spends ~550 hidden reasoning tokens (~15s+) per
+  // move while no-think answers in ~2s from the same legal-move list. Fast
+  // replies also close the time-farming angle (Qwen burns its own 5+0 clock
+  // while thinking). Default is off; FAIRMATE_THINKING=low|medium|high
+  // restores deliberate play. The exact request bytes are hash-bound into
+  // every receipt either way, so the setting is transparent in evidence.
+  const thinking =
+    THINKING_MODE === "off"
+      ? { enable_thinking: false as const }
+      : { enable_thinking: true as const, reasoning_effort: THINKING_MODE };
   const requestBodyJson = JSON.stringify({
     model: selection.model,
     messages,
     temperature,
     max_tokens: MAX_OUTPUT_TOKENS,
     response_format: { type: "json_object" },
-    enable_thinking: true,
-    reasoning_effort: "medium",
+    ...thinking,
     stream: false,
     verify_tee: true,
   });

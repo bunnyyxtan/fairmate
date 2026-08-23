@@ -11,7 +11,7 @@ import { createServer } from "node:http";
 import { resolve } from "node:path";
 import express from "express";
 import { createApiApp } from "./app.js";
-import { initCompute } from "./compute-service.js";
+import { retryComputeBoot } from "./compute-service.js";
 import { recoverReferee, startRecoveredModels, sweepIdleGames } from "./referee.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -50,15 +50,18 @@ async function main() {
   });
 
   // TEE attestation + provider selection happens in the background; games are
-  // rejected with 503 until it completes (never silently unverified).
-  void initCompute()
-    .then(() => startRecoveredModels())
-    .catch((error) => {
-      console.error(`[compute] initialization failed: ${error instanceof Error ? error.message : String(error)}`);
-    });
+  // rejected with 503 until it completes (never silently unverified). A
+  // transient boot failure is retried by the sweep timer below.
+  void retryComputeBoot(startRecoveredModels)?.catch((error) => {
+    console.error(`[compute] initialization failed: ${error instanceof Error ? error.message : String(error)}`);
+  });
 
-  // abort abandoned games so they don't hold active-game slots forever
+  // abort abandoned games so they don't hold active-game slots forever, and
+  // re-attempt a failed compute boot (self-throttled, no-op once ready)
   setInterval(() => {
+    void retryComputeBoot(startRecoveredModels)?.catch((error) => {
+      console.error(`[compute] boot retry failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
     void sweepIdleGames().catch((error) => {
       console.error(`[referee] idle sweep failed: ${error instanceof Error ? error.message : String(error)}`);
     });

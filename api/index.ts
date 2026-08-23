@@ -15,7 +15,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { waitUntil } from "@vercel/functions";
 import { createApiApp } from "../server/app.js";
 import { background, setBackgroundKeeper } from "../server/background.js";
-import { initCompute } from "../server/compute-service.js";
+import { retryComputeBoot } from "../server/compute-service.js";
 import { recoverReferee, startRecoveredModels, sweepIdleGames } from "../server/referee.js";
 
 setBackgroundKeeper((work) => waitUntil(work));
@@ -31,10 +31,7 @@ const app = createApiApp("/") as unknown as (
 
 function ensureBoot(): Promise<void> {
   if (!bootPromise) {
-    bootPromise = (async () => {
-      await recoverReferee();
-      background("compute init", initCompute().then(() => startRecoveredModels()));
-    })().catch((error) => {
+    bootPromise = recoverReferee().catch((error) => {
       bootPromise = null;
       throw error;
     });
@@ -56,6 +53,10 @@ export default async function handler(
     res.end(JSON.stringify({ error: "referee recovery is not complete" }));
     return;
   }
+  // Compute boot (and its retry after a transient Router failure) rides on
+  // request arrivals; retryComputeBoot self-throttles and no-ops when ready.
+  const computeKick = retryComputeBoot(startRecoveredModels);
+  if (computeKick) background("compute init", computeKick);
   const now = Date.now();
   if (now - lastSweepAt > SWEEP_INTERVAL_MS) {
     lastSweepAt = now;

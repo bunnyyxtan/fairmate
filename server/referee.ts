@@ -118,6 +118,28 @@ async function expireLocked(
   return true;
 }
 
+/**
+ * Expires flag-fallen games synchronously so a stale board never blocks
+ * admission. Serverless instances have no resident sweep timer; without this
+ * a create request could 429 off counts inflated by games whose clocks ran
+ * out while nobody was watching.
+ */
+async function expireOverdueGames(): Promise<void> {
+  const now = Date.now();
+  let anchored = false;
+  for (const candidate of await store.listRecoverable()) {
+    const status = candidate.state.status;
+    if (status !== "awaiting_player" && status !== "model_thinking") continue;
+    const probeClock = JSON.parse(JSON.stringify(candidate.state.clock)) as GameState["clock"];
+    if (!tickClock(probeClock, now)) continue;
+    await store.withGameLock(candidate.gameId, async (client) => {
+      const row = await store.get(candidate.gameId, client);
+      if (row && (await expireLocked(row, now, client))) anchored = true;
+    });
+  }
+  if (anchored) background("admission expiry anchor", drainPendingActions());
+}
+
 export async function createGame(ip: string, playerAddress?: string): Promise<CreatedGame> {
   ensureReady();
   const compute = getComputeState();
@@ -169,6 +191,7 @@ export async function createGame(ip: string, playerAddress?: string): Promise<Cr
     model: state.model,
     verificationIdentity: state.effectiveSigner,
   });
+  await expireOverdueGames();
   await store.withAdmissionLock(async (client) => {
     const counts = await store.admissionCounts(day, admissionKey, client);
     if (counts.active >= MAX_ACTIVE_GAMES) {

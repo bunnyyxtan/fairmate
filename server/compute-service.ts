@@ -75,9 +75,10 @@ function withComputeLock<T>(fn: () => Promise<T>): Promise<T> {
   return p;
 }
 
-/** Boot: broker + provider + attestation. Called once from server start (async). */
+/** Boot: broker + provider + attestation. Called from server start (async); rerunnable. */
 export async function initCompute(): Promise<void> {
   try {
+    state.bootError = null;
     if (transport !== "direct" && transport !== "router") {
       throw new Error(`Invalid OG_COMPUTE_TRANSPORT '${String(transport)}'; expected direct|router`);
     }
@@ -167,6 +168,30 @@ export async function initCompute(): Promise<void> {
 
 export function getComputeState(): ComputeState {
   return state;
+}
+
+let initInFlight: Promise<void> | null = null;
+let lastInitAttemptAt = 0;
+const INIT_RETRY_COOLDOWN_MS = Number(process.env.OG_COMPUTE_RETRY_MS ?? 30_000);
+
+/**
+ * Starts (or restarts) the compute boot unless it is ready, already in
+ * flight, or inside the retry cooldown. Returns the in-flight promise when a
+ * boot was started, null otherwise. initCompute never rejects — without this,
+ * one transient Router failure would leave an instance permanently serving
+ * 503s for game creation while its health endpoint stays green.
+ */
+export function retryComputeBoot(onReady: () => Promise<void>): Promise<void> | null {
+  if (state.ready || initInFlight) return null;
+  const now = Date.now();
+  if (now - lastInitAttemptAt < INIT_RETRY_COOLDOWN_MS) return null;
+  lastInitAttemptAt = now;
+  initInFlight = initCompute()
+    .then(() => (state.ready ? onReady() : undefined))
+    .finally(() => {
+      initInFlight = null;
+    });
+  return initInFlight;
 }
 
 /** One verified inference call, serialized behind the global compute lock. */

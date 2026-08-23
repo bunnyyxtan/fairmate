@@ -71,6 +71,8 @@ function fromRow(value: unknown): StoredGame {
 const SELECT = `game_id, state, capability_hash, admission_key, admission_day,
   status, version, pending_actions, inference_owner, inference_lease_until, reconciled_at`;
 const TABLE = `"fairmate"."fairmate_games"`;
+const WALLET_LOCK_NAME = "fairmate:referee-wallet:v1";
+const WALLET_LOCK_WAIT_MS = Number(process.env.FAIRMATE_WALLET_LOCK_WAIT_MS ?? 45_000);
 
 async function locked<T>(name: string, work: (client: Queryable) => Promise<T>): Promise<T> {
   const client = await pool.connect();
@@ -114,19 +116,37 @@ export class FairmateStore {
   /**
    * A session advisory lock is intentional: it remains held while a raw
    * transaction is populated and signed, preventing nonce races across hosts.
+   *
+   * Waiting happens OFF-connection: a contender try-locks and, on failure,
+   * releases its pool connection before sleeping. A blocking pg_advisory_lock
+   * would park every waiter on a live connection while the holder still needs
+   * connections for its own queries — with a small serverless pool, four
+   * concurrent drains self-deadlock the instance.
    */
   async withWalletLock<T>(work: () => Promise<T>): Promise<T> {
-    const client = await pool.connect();
-    try {
-      await client.query("select pg_advisory_lock(hashtextextended($1, 0))", [
-        "fairmate:referee-wallet:v1",
-      ]);
-      return await work();
-    } finally {
-      await client.query("select pg_advisory_unlock(hashtextextended($1, 0))", [
-        "fairmate:referee-wallet:v1",
-      ]);
-      client.release();
+    const deadline = Date.now() + WALLET_LOCK_WAIT_MS;
+    for (;;) {
+      const client = await pool.connect();
+      let acquired = false;
+      try {
+        const result = await client.query(
+          "select pg_try_advisory_lock(hashtextextended($1, 0)) as locked",
+          [WALLET_LOCK_NAME],
+        );
+        acquired = Boolean((result.rows[0] as { locked: boolean }).locked);
+        if (acquired) return await work();
+      } finally {
+        if (acquired) {
+          await client.query("select pg_advisory_unlock(hashtextextended($1, 0))", [
+            WALLET_LOCK_NAME,
+          ]);
+        }
+        client.release();
+      }
+      if (Date.now() > deadline) {
+        throw new Error("wallet lock is busy — another instance is draining the outbox");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200 + Math.floor(Math.random() * 300)));
     }
   }
 

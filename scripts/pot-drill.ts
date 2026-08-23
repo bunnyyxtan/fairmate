@@ -30,9 +30,9 @@
 import { writeFileSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { ethers } from "ethers";
-import { EVIDENCE_DIR, PROJECT_ROOT, resolveNetwork } from "../src/config";
-import { loadPrivateKey } from "../src/keys";
-import { canonicalHash } from "../shared/canonical";
+import { EVIDENCE_DIR, PROJECT_ROOT, resolveNetwork } from "../src/config.js";
+import { loadPrivateKey } from "../src/keys.js";
+import { canonicalHash } from "../shared/canonical.js";
 
 const net = resolveNetwork(process.argv, process.env);
 const provider = new ethers.JsonRpcProvider(net.evmRpc, net.chainId);

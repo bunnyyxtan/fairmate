@@ -1,11 +1,17 @@
-import "./load-env";
+import "./load-env.js";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-/** Project root (one level above src/). */
-export const PROJECT_ROOT = resolve(__dirname, "..");
+/**
+ * Project root (one level above src/). Bundlers relocate this module, so a
+ * serverless host resolves the root from its working directory instead;
+ * FAIRMATE_ROOT overrides both when set.
+ */
+export const PROJECT_ROOT =
+  process.env.FAIRMATE_ROOT?.trim() ||
+  (process.env.VERCEL ? process.cwd() : resolve(__dirname, ".."));
 
 /** Gitignored evidence output directory — never committed. */
 export const EVIDENCE_DIR = resolve(PROJECT_ROOT, "evidence");

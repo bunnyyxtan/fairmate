@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createClock, startTurn, stopClock, tickClock } from "./game-clock";
+import { createClock, startTurn, stopClock, tickClock } from "./game-clock.js";
 
 test("creates a 5+0 clock with the player running", () => {
   const clock = createClock(1_000);

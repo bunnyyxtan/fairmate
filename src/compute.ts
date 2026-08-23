@@ -6,11 +6,17 @@ const MIN_INFERENCE_INTERVAL_MS = Number(process.env.OG_MIN_REQUEST_INTERVAL_MS 
 let lastInferenceAt = 0;
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { createRequire } from "node:module";
 import { ethers } from "ethers";
-import {
-  createZGComputeNetworkBroker,
-  InferenceVerifier,
-} from "@0gfoundation/0g-compute-ts-sdk";
+
+// The SDK's ESM build re-exports minified bindings from an internal chunk
+// that plain Node cannot link (the nested type:module marker is lost when
+// serverless hosts trace files), so load the CommonJS build explicitly.
+// Types are erased at runtime and keep coming from the real package.
+const requireSdk = createRequire(import.meta.url);
+const { createZGComputeNetworkBroker, InferenceVerifier } = requireSdk(
+  "@0gfoundation/0g-compute-ts-sdk",
+) as typeof import("@0gfoundation/0g-compute-ts-sdk");
 import { canonicalHash } from "./canonical.js";
 import type { NetworkConfig } from "./config.js";
 

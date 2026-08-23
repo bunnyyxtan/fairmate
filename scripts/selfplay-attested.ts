@@ -14,10 +14,10 @@
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { Chess } from "chess.js";
-import { canonicalHash } from "../shared/canonical";
-import { EVIDENCE_DIR, NETWORKS } from "../src/config";
-import { discoverRouterSelection, routerCompletion } from "../src/router-compute";
-import { CHESS_SYSTEM_PROMPT, buildMoveUserPrompt, parseMove } from "../src/chess-agent";
+import { canonicalHash } from "../shared/canonical.js";
+import { EVIDENCE_DIR, NETWORKS } from "../src/config.js";
+import { discoverRouterSelection, routerCompletion } from "../src/router-compute.js";
+import { CHESS_SYSTEM_PROMPT, buildMoveUserPrompt, parseMove } from "../src/chess-agent.js";
 
 const TARGET_PLIES = Number(process.env.TARGET_PLIES ?? 6);
 const MAX_ATTEMPTS_PER_MOVE = 2;

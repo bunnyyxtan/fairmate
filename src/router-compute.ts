@@ -1,18 +1,18 @@
 import { ethers } from "ethers";
-import { sha256Utf8 } from "../shared/canonical";
-import { computeRouterReceiptHash } from "../shared/receipt";
+import { sha256Utf8 } from "../shared/canonical.js";
+import { computeRouterReceiptHash } from "../shared/receipt.js";
 import {
   FAIRMATE_ROUTER_MAX_COMPLETION_PRICE_USD,
   FAIRMATE_ROUTER_MAX_PROMPT_PRICE_USD,
   FAIRMATE_ROUTER_MODEL,
   FAIRMATE_ROUTER_PROVIDER,
-} from "../shared/router-policy";
+} from "../shared/router-policy.js";
 import type {
   RouterReceiptBundle,
   RouterRequestConstraints,
   RouterTrace,
-} from "../shared/protocol";
-import { requireSecret } from "./config";
+} from "../shared/protocol.js";
+import { requireSecret } from "./config.js";
 
 export const ROUTER_BASE_URL = "https://router-api.0g.ai/v1";
 export const ROUTER_MODEL = FAIRMATE_ROUTER_MODEL;

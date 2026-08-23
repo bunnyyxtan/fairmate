@@ -12,8 +12,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { ethers } from "ethers";
-import { EVIDENCE_DIR, PROJECT_ROOT, findFlag, resolveNetwork } from "../src/config";
-import { loadPrivateKey } from "../src/keys";
+import { EVIDENCE_DIR, PROJECT_ROOT, findFlag, resolveNetwork } from "../src/config.js";
+import { loadPrivateKey } from "../src/keys.js";
 
 const net = resolveNetwork(process.argv, process.env);
 const provider = new ethers.JsonRpcProvider(net.evmRpc, net.chainId);

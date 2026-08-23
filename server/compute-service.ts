@@ -14,16 +14,16 @@ import {
   type Broker,
   type ComputeSelection,
   type VerifiedCompletion,
-} from "../src/compute";
+} from "../src/compute.js";
 import {
   discoverRouterSelection,
   routerCompletion,
   type RouterCompletion,
   type RouterSelection,
-} from "../src/router-compute";
-import { NETWORKS, EVIDENCE_DIR, type NetworkConfig } from "../src/config";
-import { loadPrivateKey } from "../src/keys";
-import type { AttestationInfo, VerificationScheme } from "../shared/protocol";
+} from "../src/router-compute.js";
+import { NETWORKS, EVIDENCE_DIR, type NetworkConfig } from "../src/config.js";
+import { loadPrivateKey } from "../src/keys.js";
+import type { AttestationInfo, VerificationScheme } from "../shared/protocol.js";
 
 export type ComputeTransport = "direct" | "router";
 

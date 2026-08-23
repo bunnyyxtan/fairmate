@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test, { after } from "node:test";
-import { pool } from "../db/pool";
+import { pool } from "../db/pool.js";
 import { Chess } from "chess.js";
-import type { GameState, PlyRecord } from "../shared/protocol";
-import { FairmateStore, newAction } from "./fairmate-store";
-import { createClock, stopClock } from "./game-clock";
-import { applyPly } from "./referee-state";
-import { canonicalHash } from "../shared/canonical";
+import type { GameState, PlyRecord } from "../shared/protocol.js";
+import { FairmateStore, newAction } from "./fairmate-store.js";
+import { createClock, stopClock } from "./game-clock.js";
+import { applyPly } from "./referee-state.js";
+import { canonicalHash } from "../shared/canonical.js";
 
 const ids: string[] = [];
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildMoveUserPrompt, parseMove } from "./chess-agent";
+import { buildMoveUserPrompt, parseMove } from "./chess-agent.js";
 
 test("accepts an exact legal SAN from strict JSON", () => {
   assert.deepEqual(parseMove('{"move":"Nf6","why":"Develops with tempo"}', ["Nf6", "e5"]), {

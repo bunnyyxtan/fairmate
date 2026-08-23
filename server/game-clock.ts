@@ -1,4 +1,4 @@
-import type { ClockState, Mover } from "../shared/protocol";
+import type { ClockState, Mover } from "../shared/protocol.js";
 
 export const DEFAULT_CLOCK_MS = 5 * 60 * 1000;
 

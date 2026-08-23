@@ -1,11 +1,11 @@
 import { Chess } from "chess.js";
 import { ethers } from "ethers";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { canonicalHash } from "../shared/canonical";
-import { computeReceiptHash } from "../shared/receipt";
-import type { GameState, PlyRecord, ReceiptBundle } from "../shared/protocol";
-import { CHESS_SYSTEM_PROMPT, buildMoveUserPrompt, parseMove } from "../src/chess-agent";
-import { completion, getComputeState } from "./compute-service";
+import { canonicalHash } from "../shared/canonical.js";
+import { computeReceiptHash } from "../shared/receipt.js";
+import type { GameState, PlyRecord, ReceiptBundle } from "../shared/protocol.js";
+import { CHESS_SYSTEM_PROMPT, buildMoveUserPrompt, parseMove } from "../src/chess-agent.js";
+import { completion, getComputeState } from "./compute-service.js";
 import {
   broadcastRawTransaction,
   chainInfo,
@@ -14,22 +14,23 @@ import {
   readJournalGame,
   readPot,
   transactionReceipt,
-} from "./chain";
+} from "./chain.js";
 import {
   FairmateStore,
   newAction,
   type Queryable,
   type StoredGame,
-} from "./fairmate-store";
-import { createClock, stopClock, tickClock } from "./game-clock";
+} from "./fairmate-store.js";
+import { createClock, stopClock, tickClock } from "./game-clock.js";
 import {
   applyPly,
   chessFor,
   planEnd,
   voidPendingAward,
-} from "./referee-state";
-import { DurableOutbox } from "./durable-outbox";
-import { verifyJournalState } from "./journal-verifier";
+} from "./referee-state.js";
+import { DurableOutbox } from "./durable-outbox.js";
+import { background } from "./background.js";
+import { verifyJournalState } from "./journal-verifier.js";
 
 const MAX_ACTIVE_GAMES = Number(process.env.FAIRMATE_MAX_ACTIVE_GAMES ?? 3);
 const MAX_GAMES_PER_IP_PER_DAY = Number(process.env.FAIRMATE_MAX_GAMES_PER_IP_PER_DAY ?? 5);
@@ -49,12 +50,6 @@ const outbox = new DurableOutbox(store, {
   perWinBountyOg: async () => (await readPot()).perWinBountyOg,
 });
 let reconciled = false;
-
-function background(label: string, promise: Promise<unknown>): void {
-  void promise.catch((error) => {
-    console.error(`[referee] background ${label} failed: ${error instanceof Error ? error.message : String(error)}`);
-  });
-}
 
 export interface CreatedGame {
   game: GameState;

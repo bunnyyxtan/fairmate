@@ -1,14 +1,14 @@
 import { ethers } from "ethers";
 import type { TransactionReceipt } from "ethers";
-import type { TxRef } from "../shared/protocol";
+import type { TxRef } from "../shared/protocol.js";
 import {
   FairmateStore,
   actionPly,
   newAction,
   type PendingChainAction,
   type StoredGame,
-} from "./fairmate-store";
-import { createClock, stopClock } from "./game-clock";
+} from "./fairmate-store.js";
+import { createClock, stopClock } from "./game-clock.js";
 import {
   anchorPly,
   applyPly,
@@ -16,8 +16,8 @@ import {
   planEnd,
   rollbackToAnchored,
   voidPendingAward,
-} from "./referee-state";
-import type { PreparedChainCall, SignedChainTransaction } from "./chain";
+} from "./referee-state.js";
+import type { PreparedChainCall, SignedChainTransaction } from "./chain.js";
 
 export interface AwardRead {
   rewarded: boolean;

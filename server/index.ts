@@ -10,9 +10,9 @@
 import { createServer } from "node:http";
 import { resolve } from "node:path";
 import express from "express";
-import { api } from "./routes";
-import { initCompute } from "./compute-service";
-import { recoverReferee, startRecoveredModels, sweepIdleGames } from "./referee";
+import { createApiApp } from "./app.js";
+import { initCompute } from "./compute-service.js";
+import { recoverReferee, startRecoveredModels, sweepIdleGames } from "./referee.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const rawBase = process.env.BASE_PATH ?? "/";
@@ -23,13 +23,7 @@ async function main() {
   // Resolve durable outbox entries and verify active/startup-pending games
   // before traffic. Completed history is verified on evidence export.
   await recoverReferee();
-  const app = express();
-  // Production is deployed behind exactly one reverse-proxy hop.
-  // Never trust an arbitrary X-Forwarded-For chain supplied by the client.
-  app.set("trust proxy", 1);
-  app.use(express.json({ limit: "128kb" }));
-
-  app.use(`${base}api`, api);
+  const app = createApiApp(base);
   const httpServer = createServer(app);
 
   if (process.env.NODE_ENV === "production") {

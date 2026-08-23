@@ -24,14 +24,14 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { Chess } from "chess.js";
 import { ethers } from "ethers";
-import { NETWORKS, EVIDENCE_DIR, PROJECT_ROOT, findFlag, type NetworkConfig } from "../src/config";
-import { canonicalHash } from "../shared/canonical";
-import { verifyReceiptBundle, type ReceiptBundleLike } from "../shared/receipt";
+import { NETWORKS, EVIDENCE_DIR, PROJECT_ROOT, findFlag, type NetworkConfig } from "../src/config.js";
+import { canonicalHash } from "../shared/canonical.js";
+import { verifyReceiptBundle, type ReceiptBundleLike } from "../shared/receipt.js";
 import {
   FAIRMATE_ROUTER_MODEL,
   FAIRMATE_ROUTER_PROVIDER,
-} from "../shared/router-policy";
-import { parseMove } from "../src/chess-agent";
+} from "../shared/router-policy.js";
+import { parseMove } from "../src/chess-agent.js";
 
 let passCount = 0;
 let failCount = 0;

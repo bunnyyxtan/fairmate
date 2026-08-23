@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import { pool } from "../db/pool";
-import type { GameState, PlyRecord } from "../shared/protocol";
+import { pool } from "../db/pool.js";
+import type { GameState, PlyRecord } from "../shared/protocol.js";
 
 export type ChainActionKind = "start" | "ply" | "end" | "award";
 

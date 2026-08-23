@@ -5,9 +5,9 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { ethers } from "ethers";
-import { NETWORKS, PROJECT_ROOT, type NetworkName } from "../src/config";
-import { loadPrivateKey } from "../src/keys";
-import type { ChainInfo } from "../shared/protocol";
+import { NETWORKS, PROJECT_ROOT, type NetworkName } from "../src/config.js";
+import { loadPrivateKey } from "../src/keys.js";
+import type { ChainInfo } from "../shared/protocol.js";
 
 const production = process.env.NODE_ENV === "production";
 const rawNet = process.env.OG_CHAIN_NETWORK ??

@@ -1,7 +1,7 @@
 import { Router, type Request } from "express";
-import type { ApiError, PotInfo } from "../shared/protocol";
-import { getComputeState } from "./compute-service";
-import { chainInfo, readPot, refereeAddress } from "./chain";
+import type { ApiError, PotInfo } from "../shared/protocol.js";
+import { getComputeState } from "./compute-service.js";
+import { chainInfo, readPot, refereeAddress } from "./chain.js";
 import {
   RefereeError,
   createGame,
@@ -9,7 +9,7 @@ import {
   getGame,
   playerMove,
   resign,
-} from "./referee";
+} from "./referee.js";
 
 export const api = Router();
 

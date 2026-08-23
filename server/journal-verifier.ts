@@ -1,8 +1,8 @@
 import { ethers } from "ethers";
-import { canonicalHash } from "../shared/canonical";
-import type { GameState } from "../shared/protocol";
-import type { JournalSnapshot } from "./chain";
-import { resultEnum } from "./referee-state";
+import { canonicalHash } from "../shared/canonical.js";
+import type { GameState } from "../shared/protocol.js";
+import type { JournalSnapshot } from "./chain.js";
+import { resultEnum } from "./referee-state.js";
 
 function equal(actual: unknown, expected: unknown, label: string): void {
   if (String(actual).toLowerCase() !== String(expected).toLowerCase()) {

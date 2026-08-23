@@ -1,8 +1,8 @@
 import { Chess } from "chess.js";
-import { canonicalHash } from "../shared/canonical";
-import type { GameResult, GameState, PlyRecord, TxRef } from "../shared/protocol";
-import { newAction, type PendingChainAction } from "./fairmate-store";
-import { startTurn, stopClock } from "./game-clock";
+import { canonicalHash } from "../shared/canonical.js";
+import type { GameResult, GameState, PlyRecord, TxRef } from "../shared/protocol.js";
+import { newAction, type PendingChainAction } from "./fairmate-store.js";
+import { startTurn, stopClock } from "./game-clock.js";
 
 export function chessFor(state: GameState): Chess {
   const chess = new Chess();

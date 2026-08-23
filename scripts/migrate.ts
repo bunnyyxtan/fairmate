@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { pool } from "../db/pool";
+import { pool } from "../db/pool.js";
 
 const sql = await readFile(resolve(import.meta.dirname, "../db/schema.sql"), "utf8");
 

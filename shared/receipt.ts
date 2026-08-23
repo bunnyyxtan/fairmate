@@ -1,18 +1,18 @@
 import { verifyMessage } from "ethers";
-import { canonicalHash, sha256Utf8 } from "./canonical";
+import { canonicalHash, sha256Utf8 } from "./canonical.js";
 import {
   FAIRMATE_ROUTER_MAX_COMPLETION_PRICE_USD,
   FAIRMATE_ROUTER_MAX_PROMPT_PRICE_USD,
   FAIRMATE_ROUTER_MODEL,
   FAIRMATE_ROUTER_PROVIDER,
-} from "./router-policy";
+} from "./router-policy.js";
 import type {
   DirectReceiptBundle,
   ReceiptBundle,
   RouterReceiptBundle,
   RouterRequestConstraints,
   RouterTrace,
-} from "./protocol";
+} from "./protocol.js";
 
 /**
  * TEE receipt verification — isomorphic (browser + node).

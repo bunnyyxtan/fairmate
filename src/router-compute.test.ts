@@ -4,13 +4,13 @@ import {
   allChecksPass,
   computeRouterReceiptHash,
   verifyReceiptBundle,
-} from "../shared/receipt";
+} from "../shared/receipt.js";
 import {
   ROUTER_MODEL,
   ROUTER_PROVIDER,
   parseRouterCompletion,
   type RouterSelection,
-} from "./router-compute";
+} from "./router-compute.js";
 
 const selection: RouterSelection = {
   scheme: "router-teetls",

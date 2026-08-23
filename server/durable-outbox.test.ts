@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test, { after } from "node:test";
-import { pool } from "../db/pool";
+import { pool } from "../db/pool.js";
 import { Chess } from "chess.js";
 import type { TransactionReceipt } from "ethers";
-import type { GameState, PlyRecord } from "../shared/protocol";
-import { canonicalHash } from "../shared/canonical";
-import { DurableOutbox, type AwardRead, type OutboxChain } from "./durable-outbox";
-import { FairmateStore, newAction, type PendingChainAction } from "./fairmate-store";
-import { createClock, stopClock } from "./game-clock";
-import { applyPly, planEnd } from "./referee-state";
-import type { PreparedChainCall, SignedChainTransaction } from "./chain";
-import { verifyJournalState } from "./journal-verifier";
+import type { GameState, PlyRecord } from "../shared/protocol.js";
+import { canonicalHash } from "../shared/canonical.js";
+import { DurableOutbox, type AwardRead, type OutboxChain } from "./durable-outbox.js";
+import { FairmateStore, newAction, type PendingChainAction } from "./fairmate-store.js";
+import { createClock, stopClock } from "./game-clock.js";
+import { applyPly, planEnd } from "./referee-state.js";
+import type { PreparedChainCall, SignedChainTransaction } from "./chain.js";
+import { verifyJournalState } from "./journal-verifier.js";
 
 const ids: string[] = [];
 const receipt = (status = 1, blockNumber = 10): TransactionReceipt =>

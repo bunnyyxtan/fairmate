@@ -132,6 +132,16 @@ export interface ChainInfo {
   potAddress: string;
 }
 
+/** On-chain entry stake that admitted a prize game. */
+export interface StakeInfo {
+  txHash: string;
+  /** staking wallet; always equals the payout address */
+  from: string;
+  amountOg: string;
+  blockNumber: number;
+  verifiedAt: number;
+}
+
 export interface GameState {
   gameId: string; // bytes32
   playerAddress: string | null;
@@ -148,6 +158,10 @@ export interface GameState {
   startTx: TxRef;
   endTx?: TxRef;
   awardTx?: TxRef & { amountOg?: string };
+  /** entry stake for prize games; practice games have none */
+  stake?: StakeInfo;
+  /** stake refund for staked games that end in a draw or abort */
+  refundTx?: TxRef & { amountOg?: string };
   model: string;
   provider: string;
   effectiveSigner: string;
@@ -164,6 +178,8 @@ export interface PotInfo {
   chain: ChainInfo;
   potBalanceOg: string;
   perWinBountyOg: string;
+  /** OG a player must stake into the pot to start a prize game */
+  entryFeeOg: string;
   dailyCapOg: string;
   paidInWindowOg: string;
   windowStart: number;
@@ -190,8 +206,10 @@ export interface AttestationInfo {
 }
 
 export interface CreateGameRequest {
-  /** optional payout address; without it wins are recorded but unpayable */
+  /** payout address; required for prize games, omitted for practice */
   playerAddress?: string;
+  /** hash of the entry-stake transfer to the ChallengePot; required with playerAddress */
+  stakeTxHash?: string;
 }
 
 export interface PlayerMoveRequest {

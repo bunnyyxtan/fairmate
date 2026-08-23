@@ -3,6 +3,7 @@ import type { ApiError, PotInfo } from "../shared/protocol.js";
 import { getComputeState } from "./compute-service.js";
 import { chainInfo, readPot, refereeAddress } from "./chain.js";
 import {
+  ENTRY_FEE_OG,
   RefereeError,
   createGame,
   gameEvidence,
@@ -44,6 +45,7 @@ api.get("/pot", async (_req, res) => {
     const info: PotInfo = {
       chain: chainInfo(),
       ...reads,
+      entryFeeOg: ENTRY_FEE_OG,
       refereeAddress: refereeAddress(),
       model: c.selection?.model ?? "",
       provider: c.selection?.provider ?? "",
@@ -68,8 +70,8 @@ api.get("/attestation", (_req, res) => {
 
 api.post("/games", async (req, res) => {
   try {
-    const body = (req.body ?? {}) as { playerAddress?: string };
-    res.status(201).json(await createGame(clientIp(req), body.playerAddress));
+    const body = (req.body ?? {}) as { playerAddress?: string; stakeTxHash?: string };
+    res.status(201).json(await createGame(clientIp(req), body.playerAddress, body.stakeTxHash));
   } catch (err) {
     fail(res, err);
   }

@@ -24,3 +24,11 @@ CREATE INDEX IF NOT EXISTS "fairmate_games_admission_idx"
 
 CREATE UNIQUE INDEX IF NOT EXISTS "fairmate_games_capability_hash_idx"
   ON "fairmate"."fairmate_games" USING btree ("capability_hash");
+
+-- Entry stakes are burned forever: one stake transaction admits exactly one
+-- prize game, ever, even across refunds and aborted games.
+CREATE TABLE IF NOT EXISTS "fairmate"."fairmate_stakes" (
+  "tx_hash" text PRIMARY KEY NOT NULL,
+  "game_id" text NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL
+);

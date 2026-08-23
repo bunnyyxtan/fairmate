@@ -63,6 +63,7 @@ export default function App() {
     game!.startTx.status === "pending" ||
     game!.endTx?.status === "pending" ||
     game!.awardTx?.status === "pending" ||
+    game!.refundTx?.status === "pending" ||
     game!.plies.some((ply) => ply.chain.status === "pending")
   );
   useEffect(() => {
@@ -111,11 +112,11 @@ export default function App() {
     }
     finally { setSubmitting(false); setPendingAction(null); }
   }
-  const start = (address?: string) => {
+  const start = (address?: string, stakeTxHash?: string) => {
     if (submitting) return;
     setSubmitting(true);
     setApiError(null);
-    void api.createGame(address)
+    void api.createGame(address, stakeTxHash)
       .then((created) => {
         window.sessionStorage.setItem(
           ACTIVE_GAME_KEY,
@@ -145,6 +146,7 @@ export default function App() {
       {rules && <Dialog titleId="rules-title" onClose={() => setRules(false)}>
         <span>Fair-play rules</span><h2 id="rules-title">THE MODEL CAN'T<br />SWITCH THE GAME.</h2>
         <p>The model, provider identity, verification scheme and move journal come from the live service configuration. FairMate recomputes every evidence property available to the browser and states the Router trust boundary explicitly.</p>
+        <p>Prize games stake {pot.entryFeeOg} OG into the pot up front. A journal-recorded win pays {pot.perWinBountyOg} OG back to your wallet, a draw or aborted game refunds the stake automatically, a loss leaves it in the pot. Practice games are free.</p>
         <dl className="rules-data"><div><dt>Model</dt><dd>{pot.model}</dd></div><div><dt>Provider</dt><dd>{pot.provider}</dd></div><div><dt>Proof mode</dt><dd>{pot.verificationScheme}</dd></div><div><dt>Checked</dt><dd>{attestation ? new Date(attestation.verifiedAt).toLocaleString() : "Unavailable"}</dd></div></dl>
         {attestation?.trustBoundary && <p className="rules-trust">{attestation.trustBoundary}</p>}
         <a href={pot.chain.explorer} target="_blank" rel="noreferrer">Inspect live contracts <ExternalLink /></a>

@@ -26,12 +26,12 @@ export function PrizeMoment({
         <span className="cl-demo-label">{recorded ? "Journal-recorded victory" : endFailed ? "Chess victory · journal not confirmed" : "Chess victory · journal settling"}</span>
         <h1 id="prize-title">YOU BEAT<br />{game.model}.</h1>
         <p>{game.endReason ?? "Your win is recorded in the match journal."}</p>
-        <div className="cl-prize-value"><small>Prize</small><strong>{award?.amountOg ? `${award.amountOg} OG` : "Awaiting award amount"}</strong></div>
+        <div className="cl-prize-value"><small>{game.stake ? "Prize · includes your stake back" : "Prize"}</small><strong>{award?.amountOg ? `${award.amountOg} OG` : "Awaiting award amount"}</strong></div>
         <ul className="cl-prize-proof">
           <li className={endFailed ? "failed" : ""}><ShieldCheck /><span><b>
             {recorded ? "Game result recorded" : endFailed ? "Game result not recorded" : "Game result anchoring on-chain"}
           </b><small>
-            {recorded ? game.endTx?.txHash ?? game.gameId : endFailed ? game.endTx?.error ?? "The end-game transaction failed." : "Settling in the background — the payout unlocks after this confirms."}
+            {recorded ? game.endTx?.txHash ?? game.gameId : endFailed ? game.endTx?.error ?? "The end-game transaction failed." : "Settling in the background, the payout unlocks after this confirms."}
           </small></span>{recorded && <Check />}</li>
           <li className={award?.status === "failed" ? "failed" : ""}><Trophy /><span><b>
             {!payable ? "Win cannot be paid" : award?.status === "confirmed" ? "Award confirmed" : award?.status === "failed" ? "Award transaction failed" : "Award transaction pending"}

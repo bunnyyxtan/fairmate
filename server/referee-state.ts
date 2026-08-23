@@ -34,6 +34,13 @@ export function voidPendingAward(state: GameState, reason: string): void {
   }
 }
 
+/** Mirrors voidPendingAward for stake refunds on fail-closed freezes. */
+export function voidPendingRefund(state: GameState, reason: string): void {
+  if (state.refundTx && state.refundTx.status !== "confirmed") {
+    state.refundTx = { status: "failed", error: reason };
+  }
+}
+
 export function planEnd(
   state: GameState,
   chess: Chess,
@@ -48,6 +55,11 @@ export function planEnd(
   state.endTx = { status: "pending" };
   if (result === "player_win" && state.playerAddress) state.awardTx = { status: "pending" };
   else voidPendingAward(state, `award cancelled: ${reason}`);
+  // A staked game that ends without a winner returns the stake. Losses
+  // (model_win) intentionally leave the stake in the pot.
+  if ((result === "draw" || result === "aborted") && state.stake) {
+    if (state.refundTx?.status !== "confirmed") state.refundTx = { status: "pending" };
+  }
   return newAction("end", {
     gameId: state.gameId,
     result: resultEnum(result),

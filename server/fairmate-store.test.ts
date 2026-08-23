@@ -189,6 +189,25 @@ test("setPendingSigned updates only the matching queue head", async () => {
   assert.equal((await store.get(id))?.pendingActions[0]?.rawTx, "0xraw");
 });
 
+test("registerStake burns a stake tx hash once, case-insensitively", async () => {
+  const store = new FairmateStore();
+  const a = gameId();
+  const b = gameId();
+  const hash = `0xAB${randomUUID().replaceAll("-", "")}`;
+  try {
+    const first = await store.withAdmissionLock((client) => store.registerStake(hash, a, client));
+    const second = await store.withAdmissionLock((client) =>
+      store.registerStake(hash.toLowerCase(), b, client),
+    );
+    assert.equal(first, true);
+    assert.equal(second, false);
+  } finally {
+    await pool.query(`delete from "fairmate"."fairmate_stakes" where tx_hash = $1`, [
+      hash.toLowerCase(),
+    ]);
+  }
+});
+
 test("optimistic ply application advances board, phase and clock immediately", () => {
   const id = gameId();
   const value = state(id);

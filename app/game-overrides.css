@@ -667,6 +667,19 @@
 .fm-challenge-lobby .cl-mode-switch strong { font: 400 18px/1.1 'Anton', sans-serif; letter-spacing: .02em; text-transform: uppercase; }
 .fm-challenge-lobby .cl-mode-switch span { font: 650 9px/1.3 var(--mono); color: #705347; text-transform: uppercase; letter-spacing: .02em; text-transform: uppercase; }
 
+/* Entry-stake panel inside the prize flow */
+.fm-challenge-lobby .cl-stake-panel { display: grid; gap: 9px; margin: 14px 0 4px; padding: 13px 14px 14px; border: 2px solid var(--ink); background: rgba(255, 255, 255, .5); box-shadow: 3px 3px 0 var(--ink); }
+.fm-challenge-lobby .cl-stake-panel.is-waiting { opacity: .78; }
+.fm-challenge-lobby .cl-stake-how { margin: 0; font: 500 12px/1.5 var(--mono); color: #705347; }
+.fm-challenge-lobby .cl-stake-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.fm-challenge-lobby .cl-stake-actions button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 12px; border: 2px solid var(--ink); background: #fff; color: var(--ink); font: 650 10px/1 var(--mono); text-transform: uppercase; letter-spacing: .04em; cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+.fm-challenge-lobby .cl-stake-actions button:hover { transform: translateY(-1px); box-shadow: 3px 3px 0 var(--ink); }
+.fm-challenge-lobby .cl-stake-actions button:active { transform: translateY(1px); box-shadow: 1px 1px 0 var(--ink); }
+.fm-challenge-lobby .cl-stake-actions button.is-wallet { background: var(--soft-accent); }
+.fm-challenge-lobby .cl-stake-actions button:disabled { opacity: .55; cursor: default; transform: none; box-shadow: none; }
+.fm-challenge-lobby .cl-wallet-note { margin: 0; font: 650 10px/1.45 var(--mono); text-transform: uppercase; letter-spacing: .03em; color: #705347; }
+.honest-result .cl-refund-note a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
 .fm-challenge-lobby .cl-start-cta {
   width: 100%; min-height: 54px; margin-top: 4px;
   display: inline-flex; align-items: center; justify-content: center; gap: 9px;

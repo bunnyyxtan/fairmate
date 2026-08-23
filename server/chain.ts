@@ -8,6 +8,7 @@ import { ethers } from "ethers";
 import { NETWORKS, PROJECT_ROOT, type NetworkName } from "../src/config.js";
 import { loadPrivateKey } from "../src/keys.js";
 import type { ChainInfo } from "../shared/protocol.js";
+import { checkStakeFacts, type StakeCheck, type StakeTxFacts } from "./stake-rules.js";
 
 const production = process.env.NODE_ENV === "production";
 const rawNet = process.env.OG_CHAIN_NETWORK ??
@@ -88,7 +89,9 @@ export type PreparedChainCall =
   | { kind: "start"; args: [string, string, string, string, string] }
   | { kind: "ply"; args: [string, number, string, string, string, string] }
   | { kind: "end"; args: [string, number, string] }
-  | { kind: "award"; args: [string] };
+  | { kind: "award"; args: [string] }
+  /** owner-signed stake refund via ChallengePot.defund(to, amountWei) */
+  | { kind: "refund"; args: [string, string] };
 
 export interface SignedChainTransaction {
   rawTx: string;
@@ -98,8 +101,9 @@ export interface SignedChainTransaction {
 
 /** Populate and sign, but do not broadcast. Caller must hold the DB wallet lock. */
 export async function prepareTransaction(call: PreparedChainCall): Promise<SignedChainTransaction> {
-  const target = call.kind === "award" ? deployment.potAddress : deployment.journalAddress;
-  const iface = call.kind === "award" ? potIface : journalIface;
+  const potCall = call.kind === "award" || call.kind === "refund";
+  const target = potCall ? deployment.potAddress : deployment.journalAddress;
+  const iface = potCall ? potIface : journalIface;
   const method =
     call.kind === "start"
       ? "startGame"
@@ -107,7 +111,9 @@ export async function prepareTransaction(call: PreparedChainCall): Promise<Signe
         ? "commitMove"
         : call.kind === "end"
           ? "endGame"
-          : "award";
+          : call.kind === "award"
+            ? "award"
+            : "defund";
   const data = iface.encodeFunctionData(method, call.args);
   const populated = await wallet.populateTransaction({ to: target, data });
   const rawTx = await wallet.signTransaction(populated);
@@ -274,6 +280,33 @@ export interface PotReads {
   dailyCapOg: string;
   paidInWindowOg: string;
   windowStart: number;
+}
+
+/**
+ * Verifies an entry-stake transfer to the ChallengePot: mined, successful,
+ * right destination, sent by the payout address, and at least the entry fee.
+ */
+export async function verifyStakeDeposit(
+  txHash: string,
+  expectedFrom: string,
+  minWei: bigint,
+): Promise<StakeCheck> {
+  const [tx, receipt] = await Promise.all([
+    provider.getTransaction(txHash),
+    provider.getTransactionReceipt(txHash),
+  ]);
+  const facts: StakeTxFacts | null = tx
+    ? {
+        found: true,
+        mined: receipt !== null,
+        status: receipt?.status ?? null,
+        to: tx.to,
+        from: tx.from,
+        valueWei: tx.value,
+        blockNumber: receipt?.blockNumber ?? null,
+      }
+    : null;
+  return checkStakeFacts(facts, expectedFrom, minWei, deployment.potAddress, net.displayName);
 }
 
 let potCache: { at: number; value: PotReads } | null = null;

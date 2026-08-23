@@ -14,6 +14,7 @@ import {
   readJournalGame,
   readPot,
   transactionReceipt,
+  verifyStakeDeposit,
 } from "./chain.js";
 import {
   FairmateStore,
@@ -27,6 +28,7 @@ import {
   chessFor,
   planEnd,
   voidPendingAward,
+  voidPendingRefund,
 } from "./referee-state.js";
 import { DurableOutbox } from "./durable-outbox.js";
 import { background } from "./background.js";
@@ -39,6 +41,9 @@ const MODEL_MOVE_ATTEMPTS = 2;
 const MODEL_TEMPERATURE = 0.2;
 const IDLE_ABORT_MS = Number(process.env.FAIRMATE_IDLE_ABORT_MS ?? 10 * 60 * 1000);
 const GAME_CLOCK_MS = Number(process.env.FAIRMATE_CLOCK_MS ?? 5 * 60 * 1000);
+/** OG a player stakes into the ChallengePot to start a prize game. */
+export const ENTRY_FEE_OG = process.env.FAIRMATE_ENTRY_FEE_OG ?? "0.1";
+const ENTRY_FEE_WEI = ethers.parseEther(ENTRY_FEE_OG);
 const INFERENCE_LEASE_MS = 5 * 60 * 1000;
 const START_FEN = new Chess().fen();
 const store = new FairmateStore();
@@ -112,7 +117,7 @@ async function expireLocked(
   const chess = chessFor(state);
   const result = expired === "player" ? "model_win" : "player_win";
   const reason =
-    expired === "player" ? "player flag fell — 5+0 timeout" : "Qwen flag fell — 5+0 timeout";
+    expired === "player" ? "player flag fell, 5+0 timeout" : "Qwen flag fell, 5+0 timeout";
   const action = planEnd(state, chess, result, reason);
   await store.save(row.gameId, state, [...row.pendingActions, action], client);
   return true;
@@ -140,7 +145,11 @@ async function expireOverdueGames(): Promise<void> {
   if (anchored) background("admission expiry anchor", drainPendingActions());
 }
 
-export async function createGame(ip: string, playerAddress?: string): Promise<CreatedGame> {
+export async function createGame(
+  ip: string,
+  playerAddress?: string,
+  stakeTxHash?: string,
+): Promise<CreatedGame> {
   ensureReady();
   const compute = getComputeState();
   if (!compute.ready || !compute.selection) {
@@ -156,6 +165,32 @@ export async function createGame(ip: string, playerAddress?: string): Promise<Cr
   } else {
     playerAddress = undefined;
   }
+  let stake: GameState["stake"];
+  if (playerAddress) {
+    if (!stakeTxHash) {
+      throw new RefereeError(
+        402,
+        `prize games require a ${ENTRY_FEE_OG} OG entry stake sent to the ChallengePot, include its transaction hash`,
+      );
+    }
+    if (!ethers.isHexString(stakeTxHash, 32)) {
+      throw new RefereeError(400, "stakeTxHash must be a 0x-prefixed 32-byte transaction hash");
+    }
+    const check = await verifyStakeDeposit(stakeTxHash, playerAddress, ENTRY_FEE_WEI);
+    if (!check.ok) throw new RefereeError(check.retryable ? 409 : 400, check.reason);
+    stake = {
+      txHash: stakeTxHash.toLowerCase(),
+      from: ethers.getAddress(playerAddress),
+      amountOg: check.amountOg,
+      blockNumber: check.blockNumber,
+      verifiedAt: Date.now(),
+    };
+  } else if (stakeTxHash) {
+    throw new RefereeError(
+      400,
+      "a stake needs a payout address on the same game, practice games are free",
+    );
+  }
   const accessToken = randomBytes(32).toString("base64url");
   const gameId = ethers.hexlify(ethers.randomBytes(32));
   const admissionKey = store.admissionKey(ip);
@@ -167,6 +202,7 @@ export async function createGame(ip: string, playerAddress?: string): Promise<Cr
   const state: GameState = {
     gameId,
     playerAddress: playerAddress ?? null,
+    ...(stake ? { stake } : {}),
     playerColor: "w",
     fen: START_FEN,
     sans: [],
@@ -195,22 +231,31 @@ export async function createGame(ip: string, playerAddress?: string): Promise<Cr
   await store.withAdmissionLock(async (client) => {
     const counts = await store.admissionCounts(day, admissionKey, client);
     if (counts.active >= MAX_ACTIVE_GAMES) {
-      throw new RefereeError(429, "all boards are busy — try again in a minute");
+      throw new RefereeError(429, "all boards are busy, try again in a minute");
     }
     if (counts.activeForKey >= 1) {
-      throw new RefereeError(429, "you already have an active game — finish or resign it first");
+      throw new RefereeError(429, "you already have an active game, finish or resign it first");
     }
     if (counts.dailyForKey >= MAX_GAMES_PER_IP_PER_DAY) {
       throw new RefereeError(
         429,
-        "daily game limit reached for your connection — try again tomorrow",
+        "daily game limit reached for your connection, try again tomorrow",
       );
     }
     if (counts.dailyGlobal >= MAX_GAMES_GLOBAL_PER_DAY) {
       throw new RefereeError(
         429,
-        "today's builder-funded match allocation is complete — try again tomorrow",
+        "today's match allocation is complete, try again tomorrow",
       );
+    }
+    if (stake) {
+      const first = await store.registerStake(stake.txHash, gameId, client);
+      if (!first) {
+        throw new RefereeError(
+          409,
+          "this stake transaction has already been used for another game, send a fresh stake",
+        );
+      }
     }
     await store.insert(
       {
@@ -488,7 +533,7 @@ export async function sweepIdleGames(): Promise<void> {
         now - row.state.updatedAt > IDLE_ABORT_MS
       ) {
         const chess = chessFor(row.state);
-        const action = planEnd(row.state, chess, "aborted", "abandoned — idle timeout");
+        const action = planEnd(row.state, chess, "aborted", "abandoned, idle timeout");
         await store.save(row.gameId, row.state, [...row.pendingActions, action], client);
       }
     });
@@ -569,11 +614,12 @@ export async function recoverReferee(): Promise<void> {
           state.result = "aborted";
         }
         state.faultReason = `recovery reconciliation failed: ${reason}`;
-        state.endReason = state.endReason ?? "frozen at recovery — journal and local state disagree";
+        state.endReason = state.endReason ?? "frozen at recovery, journal and local state disagree";
         stopClock(state.clock, Date.now());
-        // The queue is being cleared, so any unpaid award can never pay out —
-        // mark it failed instead of leaving a forever-pending payout.
-        voidPendingAward(state, "award cancelled: recovery freeze — journal and local state disagree");
+        // The queue is being cleared, so any unpaid award or refund can never
+        // pay out; mark them failed instead of leaving forever-pending money.
+        voidPendingAward(state, "award cancelled: recovery freeze, journal and local state disagree");
+        voidPendingRefund(state, "refund cancelled: recovery freeze, journal and local state disagree");
         state.updatedAt = Date.now();
         await store.save(gameId, state, [], client);
       });
@@ -635,6 +681,8 @@ export async function gameEvidence(
     startTx: state.startTx,
     endTx: state.endTx ?? null,
     awardTx: state.awardTx ?? null,
+    stake: state.stake ?? null,
+    refundTx: state.refundTx ?? null,
     attestationNotes: compute.attestation?.notes ?? [],
     attestationTrustBoundary: compute.attestation?.trustBoundary ?? null,
     plies: state.plies,

@@ -352,6 +352,76 @@ test("legacy stopped-clock start from before the optimistic pipeline starts the 
   assert.equal(row?.state.clock.active, "player");
 });
 
+function stakedState(gameId: string): GameState {
+  const value = state(gameId);
+  value.playerAddress = "0x00000000000000000000000000000000000000Aa";
+  value.stake = {
+    txHash: "0xstakehash",
+    from: value.playerAddress,
+    amountOg: "0.1",
+    blockNumber: 5,
+    verifiedAt: Date.now(),
+  };
+  return value;
+}
+
+test("draw end confirmation queues the stake refund and the same drain pays it", async () => {
+  const store = new FairmateStore();
+  const fake = new FakeChain();
+  const gameId = id();
+  const value = stakedState(gameId);
+  const endAction = planEnd(value, new Chess(), "draw", "draw agreed");
+  assert.equal(value.refundTx?.status, "pending");
+  await insert(store, value, [endAction]);
+  await new DurableOutbox(store, fake).drain();
+  const row = await store.get(gameId);
+  assert.equal(row?.state.endTx?.status, "confirmed");
+  assert.equal(row?.state.refundTx?.status, "confirmed");
+  assert.equal(row?.state.refundTx?.amountOg, "0.1");
+  assert.ok(row?.state.refundTx?.txHash);
+  assert.deepEqual(row?.pendingActions, []);
+  assert.deepEqual(fake.prepares.map((call) => call.kind), ["end", "refund"]);
+  const refundCall = fake.prepares[1];
+  assert.ok(refundCall?.kind === "refund");
+  assert.equal(refundCall.args[0], value.stake?.from);
+  assert.equal(refundCall.args[1], "100000000000000000");
+});
+
+test("a model win keeps the stake in the pot with no refund", async () => {
+  const store = new FairmateStore();
+  const fake = new FakeChain();
+  const gameId = id();
+  const value = stakedState(gameId);
+  const endAction = planEnd(value, new Chess(), "model_win", "checkmate");
+  assert.equal(value.refundTx, undefined);
+  await insert(store, value, [endAction]);
+  await new DurableOutbox(store, fake).drain();
+  const row = await store.get(gameId);
+  assert.equal(row?.state.endTx?.status, "confirmed");
+  assert.equal(row?.state.refundTx, undefined);
+  assert.deepEqual(row?.pendingActions, []);
+  assert.deepEqual(fake.prepares.map((call) => call.kind), ["end"]);
+});
+
+test("reverted start on a staked game still refunds the stake", async () => {
+  const store = new FairmateStore();
+  const fake = new FakeChain();
+  fake.revertKinds.add("start");
+  const gameId = id();
+  const value = stakedState(gameId);
+  value.startTx = { status: "pending" };
+  await insert(store, value, [newAction("start", { gameId })]);
+  await new DurableOutbox(store, fake).drain();
+  const row = await store.get(gameId);
+  assert.equal(row?.state.status, "fault");
+  assert.equal(row?.state.result, "aborted");
+  assert.equal(row?.state.startTx.status, "failed");
+  assert.equal(row?.state.refundTx?.status, "confirmed");
+  assert.equal(row?.state.refundTx?.amountOg, "0.1");
+  assert.deepEqual(row?.pendingActions, []);
+  assert.deepEqual(fake.prepares.map((call) => call.kind), ["start", "refund"]);
+});
+
 test("exact journal verifier rejects start identity and move commitment drift", () => {
   const value = state(id());
   const startFenHash = canonicalHash(value.fen);

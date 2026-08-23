@@ -41,7 +41,8 @@ function pendingAnchorCount(game: GameState): number {
     (game.startTx.status === "pending" ? 1 : 0) +
     game.plies.filter((ply) => ply.chain.status === "pending").length +
     (game.endTx?.status === "pending" ? 1 : 0) +
-    (game.awardTx?.status === "pending" ? 1 : 0)
+    (game.awardTx?.status === "pending" ? 1 : 0) +
+    (game.refundTx?.status === "pending" ? 1 : 0)
   );
 }
 
@@ -74,13 +75,32 @@ function HonestResult({
       <h1>{titles[result]}</h1>
       <p>{game.faultReason ?? game.endReason ?? "The journal has recorded the final position."}</p>
       {game.endTx?.status === "pending" && (
-        <p>Final result anchoring on {game.chain.network} — evidence unlocks once it confirms.</p>
+        <p>Final result anchoring on {game.chain.network}, evidence unlocks once it confirms.</p>
       )}
       {game.endTx?.status === "failed" && <p className="api-error" role="alert">Chain transaction failed: {game.endTx.error}</p>}
       {game.endTx?.status === "confirmed" && game.endTx.txHash && (
         <a className="evidence-link" href={explorerUrl(game.chain.explorer, "tx", game.endTx.txHash)} target="_blank" rel="noreferrer">
           Final journal entry <ExternalLink size={14} />
         </a>
+      )}
+      {game.stake && (game.result === "draw" || game.result === "aborted") && (
+        game.refundTx?.status === "confirmed" ? (
+          <p className="cl-refund-note">
+            Your {game.refundTx.amountOg ?? game.stake.amountOg} OG stake was refunded.{" "}
+            {game.refundTx.txHash && (
+              <a href={explorerUrl(game.chain.explorer, "tx", game.refundTx.txHash)} target="_blank" rel="noreferrer">
+                Refund transaction <ExternalLink size={14} />
+              </a>
+            )}
+          </p>
+        ) : game.refundTx?.status === "failed" ? (
+          <p className="api-error" role="alert">Stake refund failed: {game.refundTx.error}</p>
+        ) : (
+          <p>Your {game.stake.amountOg} OG stake refund is queued and settles in the background.</p>
+        )
+      )}
+      {game.stake && game.result === "model_win" && (
+        <p>Your {game.stake.amountOg} OG entry stake stays in the pot, as per the prize rules.</p>
       )}
       <button type="button" className="evidence-link" onClick={onDownload}><Download /> Download game evidence</button>
       {downloadError && <p className="api-error" role="alert">{downloadError}</p>}
@@ -238,13 +258,13 @@ export function GameView({
             <Trophy />
             {game.playerAddress ? (
               <p>
-                Playing for <b>{bounty ?? "0.1"} OG</b> · a journal-recorded win pays{" "}
+                {game.stake ? <>Staked <b>{game.stake.amountOg} OG</b> · a win pays <b>{bounty ?? "0.2"} OG</b> to{" "}</> : <>Playing for <b>{bounty ?? "0.2"} OG</b> · a journal-recorded win pays{" "}</>}
                 <code>{shortAddress(game.playerAddress)}</code> automatically.
               </p>
             ) : (
               <p>
-                Practice run — no payout address. A win goes on-chain for the record, but the{" "}
-                <b>{bounty ?? "0.1"} OG</b> bounty needs an address next game.
+                Practice run, no stake and no payout. Wins still go on-chain for the record, prize
+                games pay <b>{bounty ?? "0.2"} OG</b>.
               </p>
             )}
           </div>

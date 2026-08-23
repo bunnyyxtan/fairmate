@@ -61,10 +61,13 @@ export const api = {
   health: () => request<Health>("health"),
   pot: () => request<PotInfo>("pot"),
   attestation: () => request<AttestationInfo>("attestation"),
-  createGame: (playerAddress?: string) =>
+  createGame: (playerAddress?: string, stakeTxHash?: string) =>
     request<CreatedGame>("games", {
       method: "POST",
-      body: JSON.stringify(playerAddress ? { playerAddress } : {}),
+      body: JSON.stringify({
+        ...(playerAddress ? { playerAddress } : {}),
+        ...(stakeTxHash ? { stakeTxHash } : {}),
+      }),
     }),
   game: (id: string, accessToken: string) =>
     request<GameState>(`games/${encodeURIComponent(id)}`, { headers: gameHeaders(accessToken) }),

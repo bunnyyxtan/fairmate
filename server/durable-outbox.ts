@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import type { TransactionReceipt } from "ethers";
-import type { TxRef } from "../shared/protocol.js";
+import type { GameState, TxRef } from "../shared/protocol.js";
 import {
   FairmateStore,
   actionPly,
@@ -69,7 +69,19 @@ function callFor(action: PendingChainAction): PreparedChainCall {
       };
     case "award":
       return { kind: "award", args: [String(p.gameId)] };
+    case "refund":
+      return { kind: "refund", args: [String(p.to), String(p.amountWei)] };
   }
+}
+
+/** Owner-signed return of the full stake to the wallet that paid it. */
+function refundAction(state: GameState): PendingChainAction {
+  if (!state.stake) throw new Error(`refund planned for unstaked game ${state.gameId}`);
+  return newAction("refund", {
+    gameId: state.gameId,
+    to: state.stake.from,
+    amountWei: ethers.parseEther(state.stake.amountOg).toString(),
+  });
 }
 
 /**
@@ -128,9 +140,23 @@ export class DurableOutbox {
         ) {
           queue.push(newAction("award", { gameId }));
         }
-      } else {
+        if (
+          (state.result === "draw" || state.result === "aborted") &&
+          state.stake &&
+          state.refundTx?.status === "pending" &&
+          !queue.some((queued) => queued.kind === "refund")
+        ) {
+          queue.push(refundAction(state));
+        }
+      } else if (action.kind === "award") {
         state.awardTx = { ...state.awardTx, ...tx };
         if (awardAmount !== undefined && state.awardTx) state.awardTx.amountOg = awardAmount;
+      } else {
+        state.refundTx = {
+          ...state.refundTx,
+          ...tx,
+          amountOg: ethers.formatEther(BigInt(String(action.payload.amountWei ?? "0"))),
+        };
       }
       state.updatedAt = Date.now();
       await this.store.save(gameId, state, queue, client);
@@ -154,6 +180,11 @@ export class DurableOutbox {
       if (action.kind === "award") {
         state.awardTx = { ...state.awardTx, ...failed };
         queue = fresh.pendingActions.slice(1);
+      } else if (action.kind === "refund") {
+        // A definitively reverted refund (e.g. drained pot) is surfaced
+        // honestly; it does not cascade into the journal record.
+        state.refundTx = { ...state.refundTx, ...failed };
+        queue = fresh.pendingActions.slice(1);
       } else if (action.kind === "start") {
         state.startTx = failed;
         state.status = "fault";
@@ -162,6 +193,11 @@ export class DurableOutbox {
         state.endReason = "game start transaction definitively reverted";
         stopClock(state.clock, Date.now());
         voidPendingAward(state, "award cancelled: game start transaction reverted");
+        if (state.stake) {
+          // The journal never opened, but the stake is real money: return it.
+          state.refundTx = { status: "pending" };
+          queue = [refundAction(state)];
+        }
       } else if (action.kind === "ply") {
         rollbackToAnchored(state);
         state.faultReason = error;
@@ -191,6 +227,12 @@ export class DurableOutbox {
         state.endReason = "aborted endGame transaction definitively reverted";
         stopClock(state.clock, Date.now());
         voidPendingAward(state, "award cancelled: aborted endGame transaction reverted");
+        if (state.stake) {
+          // Even a broken journal close returns the stake; defund is
+          // independent of journal state.
+          state.refundTx = { status: "pending" };
+          queue = [refundAction(state)];
+        }
       }
       state.updatedAt = Date.now();
       await this.store.save(row.gameId, state, queue, client);

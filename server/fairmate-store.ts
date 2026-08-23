@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { pool } from "../db/pool.js";
 import type { GameState, PlyRecord } from "../shared/protocol.js";
 
-export type ChainActionKind = "start" | "ply" | "end" | "award";
+export type ChainActionKind = "start" | "ply" | "end" | "award" | "refund";
 
 export interface PendingChainAction {
   id: string;
@@ -176,6 +176,25 @@ export class FairmateStore {
       ],
     );
     return fromRow(result.rows[0]);
+  }
+
+  /**
+   * Burns a stake transaction hash for one game, forever. Returns false when
+   * any game (including refunded and aborted ones) already used it. Callers
+   * must throw immediately on false: the aborted INSERT poisons the enclosing
+   * transaction, so no further statements may run on this client.
+   */
+  async registerStake(txHash: string, gameId: string, client: Queryable): Promise<boolean> {
+    try {
+      await client.query(
+        `insert into "fairmate"."fairmate_stakes" (tx_hash, game_id) values ($1, $2)`,
+        [txHash.toLowerCase(), gameId],
+      );
+      return true;
+    } catch (error) {
+      if ((error as { code?: string }).code === "23505") return false;
+      throw error;
+    }
   }
 
   async save(

@@ -530,7 +530,7 @@ async function reconcileStable(gameId: string, allowDrain: boolean): Promise<Sto
     if (!allowDrain) {
       throw new RefereeError(
         409,
-        `evidence is available once chain sync completes — ${pendingCount} anchor${pendingCount === 1 ? "" : "s"} pending`,
+        `evidence is available once chain sync completes, ${pendingCount} anchor${pendingCount === 1 ? "" : "s"} pending`,
       );
     }
     // Never acquire the wallet lock while holding a game lock.
@@ -598,9 +598,12 @@ export async function gameEvidence(
 ): Promise<Record<string, unknown>> {
   const row = await owned(gameId, accessToken);
   if (row.pendingActions.length > 0) {
+    // Requesting evidence should accelerate sync, not just refuse: nudge the
+    // outbox in the background so a retry a few seconds later succeeds.
+    background(`evidence sync ${gameId}`, drainPendingActions());
     throw new RefereeError(
       409,
-      `evidence is available once chain sync completes — ${row.pendingActions.length} anchor${row.pendingActions.length === 1 ? "" : "s"} pending`,
+      `evidence is available once chain sync completes, ${row.pendingActions.length} anchor${row.pendingActions.length === 1 ? "" : "s"} pending, retry shortly`,
     );
   }
   const fresh = await reconcileStable(gameId, false);

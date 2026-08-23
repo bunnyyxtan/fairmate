@@ -1,10 +1,11 @@
-import { NETWORKS, type NetworkName } from "../src/config.js";
+import { resolveNetwork } from "../src/config.js";
 import { createBroker } from "../src/compute.js";
 import { loadPrivateKey } from "../src/keys.js";
 
-const netName = (process.env.OG_NET ?? "testnet") as NetworkName;
-const net = NETWORKS[netName];
-if (!net) throw new Error(`unknown network ${netName}`);
+const net = resolveNetwork(process.argv, {
+  ...process.env,
+  OG_TARGET_NETWORK: process.env.OG_NET ?? process.env.OG_TARGET_NETWORK,
+});
 
 const broker = await createBroker(net, loadPrivateKey());
 const services = (await broker.inference.listService()) as unknown as Array<{

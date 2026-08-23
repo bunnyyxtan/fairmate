@@ -1,0 +1,29 @@
+{
+  "kind": "fairmate-deployment",
+  "chainId": 16602,
+  "rpc": "https://evmrpc-testnet.0g.ai",
+  "explorer": "https://chainscan-galileo.0g.ai",
+  "deployer": "0xa523a497aB6b06d5A2E993B36a01Dfcbe6B0eCB6",
+  "journalAddress": "0xD7170B03c7d1b902FB99aEF46F4f6125588B23C8",
+  "potAddress": "0x0d5aA82aEaec7bE8b7bC0D2475F5870c718d7894",
+  "config": {
+    "perWinBountyOg": "0.004",
+    "dailyCapOg": "0.012",
+    "fundedOg": "0.02"
+  },
+  "txs": {
+    "journalDeploy": "0xbe19794b48ec2bd61eada45c1c9edb89048d89735cd5c9929279bf18e9eedb68",
+    "potDeploy": "0xb512418a06528ad854a9fc19011b0e4fdb8726e23026f6d4071c604d69c2bb5e",
+    "configureBounty": {
+      "hash": "0x905d04c483a9b7473dc20a55894928c9ff53004cf0c8b773b34e6377e103fac2",
+      "block": 50822448
+    },
+    "fund": {
+      "hash": "0x1962bbabe6dc5c0b3f315232163cbcb6d0fde9438f06a81cefe09737bfa61e8e",
+      "block": 50822469
+    }
+  },
+  "potBalanceOg": "0.02",
+  "deployedAt": "2026-08-22T17:28:51.990Z",
+  "network": "0G Galileo Testnet"
+}

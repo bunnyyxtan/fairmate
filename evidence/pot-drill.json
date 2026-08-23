@@ -1,0 +1,154 @@
+{
+  "kind": "fairmate-pot-drill",
+  "chainId": 16602,
+  "explorer": "https://chainscan-galileo.0g.ai",
+  "referee": "0xa523a497aB6b06d5A2E993B36a01Dfcbe6B0eCB6",
+  "drillJournal": "0x3b720C17b800D1438a85b36Eb343B7f16Cccb218",
+  "drillPot": "0x19add7e98408a2690404ed8Ec2Ddc9923939Fa7C",
+  "throwawayPlayers": {
+    "player": "0x3c02d0445bad46B6BaA79a6ae5f3fC2C85fcfE76",
+    "player2": "0xC58e2D7eB54F3C67c4b9537eA3A5af338b102b4B"
+  },
+  "note": "Synthetic owner-marked fixtures on a DEDICATED drill journal+pot; the product deployment (evidence/deployment.json) is separate. Negative paths proven via eth_call at the recorded block. No fake TEE receipt is ever fabricated: the only model-move commit attempted here is the one that must revert.",
+  "games": {
+    "A_playerWin": "0xbadf7d97e2a68ad727b24b3d12af964fdae9f3c84293a0ff27595dd753befa32",
+    "B_modelWin": "0xee2870dd69f2936ccec722837cf92aecbd1b487392e762e3ff89925db7701c38",
+    "C_noPlayer": "0x73797900e09dfb32fd5df3dabe7f2a7f73f8120f8acb491f53f08a28dbe3863c",
+    "D_capExceeded": "0x502e37ccf49d1c75bfa18d17a9763fbe97accdec0c80dbe1dbd9465ccd27b663",
+    "E_ongoing": "0x5eb3c125fa1b2d867451c391092a5e6cfe8801a5ea5bd54cc8cf223e3a8ba048"
+  },
+  "steps": [
+    {
+      "n": 1,
+      "action": "deploy drill journal+pot, configure bounty 0.001/cap 0.001, fund 0.002 OG",
+      "kind": "tx",
+      "txHash": "0xde24c82fa9b14364f4ab531d1bf2bc6014a8cb7dec99bd2d19d68af9bf950fe2",
+      "expected": "pot live with 0.002 OG",
+      "observed": "pot balance 0.002 OG",
+      "pass": true
+    },
+    {
+      "n": 2,
+      "action": "award(0xbadf7d97…) for journal-recorded PlayerWin",
+      "kind": "tx",
+      "txHash": "0xf0b38369430bd442bb64104a30a0978ea8d72a4d3f60b6d85b908eb391abfff3",
+      "block": 50822935,
+      "expected": "player 0x3c02d0445bad46B6BaA79a6ae5f3fC2C85fcfE76 receives 0.001 OG",
+      "observed": "player balance 0.0 -> 0.001 OG",
+      "pass": true
+    },
+    {
+      "n": 3,
+      "action": "award same game twice",
+      "kind": "staticcall",
+      "block": 50822951,
+      "revert": "AlreadyRewarded",
+      "expected": "revert AlreadyRewarded",
+      "observed": "reverted with AlreadyRewarded",
+      "pass": true
+    },
+    {
+      "n": 4,
+      "action": "award a ModelWin game",
+      "kind": "staticcall",
+      "block": 50822951,
+      "revert": "NotPlayerWin",
+      "expected": "revert NotPlayerWin",
+      "observed": "reverted with NotPlayerWin",
+      "pass": true
+    },
+    {
+      "n": 5,
+      "action": "award PlayerWin with no player recorded",
+      "kind": "staticcall",
+      "block": 50822951,
+      "revert": "NoPlayerRecorded",
+      "expected": "revert NoPlayerRecorded",
+      "observed": "reverted with NoPlayerRecorded",
+      "pass": true
+    },
+    {
+      "n": 6,
+      "action": "award beyond the daily cap (cap consumed by step 2)",
+      "kind": "staticcall",
+      "block": 50822951,
+      "revert": "DailyCapExceeded",
+      "expected": "revert DailyCapExceeded",
+      "observed": "reverted with DailyCapExceeded",
+      "pass": true
+    },
+    {
+      "n": 7,
+      "action": "award an ongoing game",
+      "kind": "staticcall",
+      "block": 50822963,
+      "revert": "GameNotEnded",
+      "expected": "revert GameNotEnded",
+      "observed": "reverted with GameNotEnded",
+      "pass": true
+    },
+    {
+      "n": 8,
+      "action": "award unknown gameId",
+      "kind": "staticcall",
+      "block": 50822963,
+      "revert": "NoSuchGame",
+      "expected": "revert NoSuchGame",
+      "observed": "reverted with NoSuchGame",
+      "pass": true
+    },
+    {
+      "n": 9,
+      "action": "commitMove after endGame",
+      "kind": "staticcall",
+      "block": 50822963,
+      "revert": "GameAlreadyEnded",
+      "expected": "revert GameAlreadyEnded",
+      "observed": "reverted with GameAlreadyEnded",
+      "pass": true
+    },
+    {
+      "n": 10,
+      "action": "model move without receiptHash",
+      "kind": "staticcall",
+      "block": 50822963,
+      "revert": "ModelMoveNeedsReceipt",
+      "expected": "revert ModelMoveNeedsReceipt",
+      "observed": "reverted with ModelMoveNeedsReceipt",
+      "pass": true
+    },
+    {
+      "n": 11,
+      "action": "startGame from a non-referee address",
+      "kind": "staticcall",
+      "block": 50822963,
+      "revert": "NotReferee",
+      "expected": "revert NotReferee",
+      "observed": "reverted with NotReferee",
+      "pass": true
+    },
+    {
+      "n": 12,
+      "action": "award from a stranger address (permissionless)",
+      "kind": "staticcall",
+      "block": 50822963,
+      "revert": "DailyCapExceeded",
+      "expected": "DailyCapExceeded (cap binds; sender is irrelevant — no auth error)",
+      "observed": "reverted with DailyCapExceeded",
+      "pass": true
+    },
+    {
+      "n": 13,
+      "action": "owner defund reclaims leftover pot",
+      "kind": "tx",
+      "txHash": "0xddd9568097e585a66ddb6668b0778c38636a82c0fd86730fee3a66bf2450e5f5",
+      "block": 50822977,
+      "expected": "pot balance 0 after reclaiming 0.001 OG",
+      "observed": "pot balance 0.0 OG",
+      "pass": true
+    }
+  ],
+  "result": "13/13 checks passed",
+  "ranAt": "2026-08-22T17:32:56.412Z",
+  "network": "0G Galileo Testnet"
+}

@@ -1,0 +1,29 @@
+{
+  "kind": "fairmate-deployment",
+  "network": "0G Mainnet (Aristotle)",
+  "chainId": 16661,
+  "rpc": "https://evmrpc.0g.ai",
+  "explorer": "https://chainscan.0g.ai",
+  "deployer": "0x9fB13bD57b1b31d25E2d2b2B04cEea50e0B256C8",
+  "journalAddress": "0x78718E892705129417636F70ceE11A97ca5AD726",
+  "potAddress": "0x9BD5f06Ce7aB22dfF739Ed2b2886BfB49acc69Ef",
+  "config": {
+    "perWinBountyOg": "0.1",
+    "dailyCapOg": "0.3",
+    "fundedOg": "3"
+  },
+  "txs": {
+    "journalDeploy": "0x1d37d6b2147906618a858caf968fb34ab7a0979636945273d992cc7ed42e3b9b",
+    "potDeploy": "0x89cc3b5a597f87aa9c23a3039fafe2d4841b29196c4c8745a2fe409cd62258b8",
+    "configureBounty": {
+      "hash": "0x6aa3022503979c9804ed2931a0eeddd1ac9d44f9b31109f30a68c048afd5c56c",
+      "block": 42408029
+    },
+    "fund": {
+      "hash": "0x42108033ebc8f6a0a38176c890a126528952f6253d38eaed88ca0fed42ffc558",
+      "block": 42408037
+    }
+  },
+  "potBalanceOg": "3.0",
+  "deployedAt": "2026-08-23T09:24:43.500Z"
+}

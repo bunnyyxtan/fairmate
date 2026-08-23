@@ -1,0 +1,37 @@
+{
+  "kind": "fairmate-public-bridge-evidence",
+  "generatedAt": "2026-08-23T09:23:13.101Z",
+  "route": {
+    "aggregator": "LI.FI",
+    "tool": "gasZipBridge",
+    "quoteId": "6be56fe0-f923-4f5b-8b44-3efe11e4a7d5:0"
+  },
+  "source": {
+    "chainId": 8453,
+    "chain": "Base",
+    "wallet": "0x9fB13bD57b1b31d25E2d2b2B04cEea50e0B256C8",
+    "asset": {
+      "address": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+      "symbol": "USDT",
+      "decimals": 6
+    },
+    "amountBaseUnits": "5472933",
+    "approvalAddress": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+    "transactionHash": "0x50e8c9b1e24320a3137bf4a9f91581f2c74de0fadd5ece530adbecb4e98fddfd",
+    "blockNumber": 50343824,
+    "gasUsed": "763620",
+    "explorerUrl": "https://basescan.org/tx/0x50e8c9b1e24320a3137bf4a9f91581f2c74de0fadd5ece530adbecb4e98fddfd"
+  },
+  "destination": {
+    "chainId": 16661,
+    "chain": "0G Aristotle Mainnet",
+    "wallet": "0x9fB13bD57b1b31d25E2d2b2B04cEea50e0B256C8",
+    "asset": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "symbol": "OG",
+      "decimals": 18
+    },
+    "estimatedAmountBaseUnits": "33665639415781473426",
+    "minimumAmountBaseUnits": "32995693191407415480"
+  }
+}

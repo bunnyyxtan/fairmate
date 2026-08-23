@@ -1,9 +1,9 @@
 import { ethers } from "ethers";
-import { NETWORKS } from "../src/config.js";
+import { resolveNetwork } from "../src/config.js";
 import { LEDGER_MANAGER_ABI, createBroker } from "../src/compute.js";
 import { loadPrivateKey } from "../src/keys.js";
 
-const net = NETWORKS.testnet;
+const net = resolveNetwork(process.argv, process.env);
 const key = loadPrivateKey();
 const provider = new ethers.JsonRpcProvider(net.evmRpc);
 const wallet = new ethers.Wallet(key, provider);
@@ -14,18 +14,20 @@ console.log("wallet :", addr);
 const bal = await provider.getBalance(addr);
 console.log("balance:", ethers.formatEther(bal), "OG");
 
-const ledger = new ethers.Contract(net.ledgerManager, LEDGER_MANAGER_ABI, provider);
-try {
-  const min: bigint = await ledger.MIN_ACCOUNT_BALANCE();
-  console.log("ledger MIN_ACCOUNT_BALANCE:", ethers.formatEther(min), "OG");
-} catch (e) {
-  console.log("ledger MIN_ACCOUNT_BALANCE: read failed:", (e as Error).message.slice(0, 120));
-}
-try {
-  const l = (await ledger.getLedger(addr)) as { availableBalance: bigint; totalBalance: bigint };
-  console.log("ledger available:", ethers.formatEther(l.availableBalance), "OG");
-} catch {
-  console.log("ledger: none for this wallet yet");
+if (process.env.CHECK_DIRECT_LEDGER === "1") {
+  const ledger = new ethers.Contract(net.ledgerManager, LEDGER_MANAGER_ABI, provider);
+  try {
+    const min: bigint = await ledger.MIN_ACCOUNT_BALANCE();
+    console.log("direct ledger MIN_ACCOUNT_BALANCE:", ethers.formatEther(min), "OG");
+  } catch (e) {
+    console.log("direct ledger MIN_ACCOUNT_BALANCE: read failed:", (e as Error).message.slice(0, 120));
+  }
+  try {
+    const l = (await ledger.getLedger(addr)) as { availableBalance: bigint; totalBalance: bigint };
+    console.log("direct ledger available:", ethers.formatEther(l.availableBalance), "OG");
+  } catch {
+    console.log("direct ledger: none for this wallet yet");
+  }
 }
 
 // read-only service discovery (no funds needed)

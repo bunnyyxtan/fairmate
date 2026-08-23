@@ -1,0 +1,256 @@
+{
+  "kind": "fairmate-selfplay-evidence",
+  "network": "0G Mainnet (Aristotle)",
+  "chainId": 16661,
+  "model": "qwen3.7-max",
+  "provider": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+  "effectiveSigner": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+  "verificationScheme": "router-teetls",
+  "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "finalFen": "r1bqkbnr/1ppp1ppp/p1n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4",
+  "sans": [
+    "e4",
+    "e5",
+    "Nf3",
+    "Nc6",
+    "Bb5",
+    "a6"
+  ],
+  "plies": [
+    {
+      "ply": 1,
+      "mover": "model",
+      "san": "e4",
+      "why": "Controls center, opens lines for bishop and queen, most popular opening.",
+      "fenBefore": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "fenAfter": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+      "fenBeforeHash": "0xfd3f2e5d709e1a759eae56ed3725e25ae1963665ce7f8ef858d82768d81e2a0e",
+      "fenAfterHash": "0x85fb986bd3eb59b62e72889a73b86ba632e5540634e58b3e367003dbc55da582",
+      "receiptHash": "0x072355fb0d41e5bb5f9368cf88362d619925534f1da705bb86e1b33cd200a7b1",
+      "receipt": {
+        "scheme": "router-teetls",
+        "chatID": "chatcmpl-c46cff5d-95ad-4119-b66d-4e758fbf2f5a",
+        "model": "qwen3.7-max",
+        "provider": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+        "effectiveSigner": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+        "rawBody": "{\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"logprobs\":null,\"message\":{\"content\":\"{\\\"move\\\":\\\"e4\\\",\\\"why\\\":\\\"Controls center, opens lines for bishop and queen, most popular opening.\\\"}\",\"reasoning_content\":\"The starting position of chess. White to move.\\nStrongest moves are generally considered to be 1. e4 or 1. d4.\\nI will choose e4.\\nLegal moves include e4.\\nReason: Controls the center and opens lines for the bishop and queen.\\nWait, max 12 words for \\\"why\\\".\\n\\\"Controls the center, opens lines for pieces, and is a top theoretical choice.\\\" \\nLet's just use \\\"Controls the center and opens lines for the queen and bishop.\\\" \\nOr simply \\\"Controls the center and opens lines for the bishop and queen.\\\" \\nLet's output {\\\"move\\\":\\\"e4\\\",\\\"why\\\":\\\"Controls the center and opens lines for the bishop and queen.\\\"}\\nWait, e4 is exactly in the list.\\nLet's double check.\\nList: a3 a4 b3 b4 c3 c4 d3 d4 e3 e4 f3 f4 g3 g4 h3 h4 Na3 Nc3 Nf3 Nh3\\nYes, e4 is there.\\nJSON format only.\\n{\\\"move\\\":\\\"e4\\\",\\\"why\\\":\\\"Controls the center and opens lines for the bishop and queen.\\\"}\\nLength of why: 11 words.\\nPerfect.\\nEnd of thought.\",\"role\":\"assistant\"}}],\"created\":1787478092,\"id\":\"chatcmpl-c46cff5d-95ad-4119-b66d-4e758fbf2f5a\",\"model\":\"qwen3.7-max\",\"object\":\"chat.completion\",\"usage\":{\"completion_tokens\":291,\"completion_tokens_details\":{\"reasoning_tokens\":264},\"prompt_tokens\":214,\"prompt_tokens_details\":{\"cached_tokens\":0},\"total_tokens\":505},\"x_0g_trace\":{\"billing\":{\"input_cost\":\"1127780000000000\",\"output_cost\":\"4609440000000000\",\"total_cost\":\"5737220000000000\"},\"provider\":\"0xF203A388e9E70F09ece38046a6D40a89cf896309\",\"request_id\":\"e0e60b68-f194-430f-81a6-300ae74db469\",\"tee_verified\":true}}",
+        "rawBodySha256": "0x42c8c1d28bb8345e8cef8f2bd46226ace5e9633fbd2b4489a9ca7c31238caf01",
+        "requestBodyJson": "{\"model\":\"qwen3.7-max\",\"messages\":[{\"role\":\"system\",\"content\":\"You are FairMate, a chess engine playing a serious game. You are given the position as FEN and the complete list of legal moves in SAN. Choose the strongest move for the side to move. Respond with ONLY a JSON object: {\\\"move\\\":\\\"<one SAN exactly as it appears in the legal list>\\\",\\\"why\\\":\\\"<max 12 words>\\\"} No markdown, no code fences, no other text.\"},{\"role\":\"user\",\"content\":\"Position (FEN): rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\\nSide to move: White\\nMove number: 1\\nLegal moves: a3 a4 b3 b4 c3 c4 d3 d4 e3 e4 f3 f4 g3 g4 h3 h4 Na3 Nc3 Nf3 Nh3\\nPick exactly one move from the legal list.\"}],\"temperature\":0.2,\"max_tokens\":800,\"response_format\":{\"type\":\"json_object\"},\"enable_thinking\":true,\"reasoning_effort\":\"medium\",\"stream\":false,\"verify_tee\":true}",
+        "requestBodySha256": "0x052ce49a4a91ab0f67ea160c46426c7ad0226ddc12816225fbebc00025e6718f",
+        "requestConstraints": {
+          "providerAddress": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+          "maxPromptPriceUsd": "0.9",
+          "maxCompletionPriceUsd": "2.6"
+        },
+        "trace": {
+          "requestId": "e0e60b68-f194-430f-81a6-300ae74db469",
+          "provider": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+          "teeVerified": true,
+          "billing": {
+            "inputCostNeuron": "1127780000000000",
+            "outputCostNeuron": "4609440000000000",
+            "totalCostNeuron": "5737220000000000"
+          }
+        },
+        "receiptHash": "0x072355fb0d41e5bb5f9368cf88362d619925534f1da705bb86e1b33cd200a7b1",
+        "latencyMs": 9849
+      }
+    },
+    {
+      "ply": 2,
+      "mover": "model",
+      "san": "e5",
+      "why": "Controls center, opens lines for bishop and queen, classical response.",
+      "fenBefore": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+      "fenAfter": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+      "fenBeforeHash": "0x85fb986bd3eb59b62e72889a73b86ba632e5540634e58b3e367003dbc55da582",
+      "fenAfterHash": "0x49ea22321d7900d771107e0e0900d353f3860a4b72d1f4bd4644b765a3d6505b",
+      "receiptHash": "0x15a003392f872c3b6855b8b1156a6f1b0aefff071bd7ac708dd19f349f787a53",
+      "receipt": {
+        "scheme": "router-teetls",
+        "chatID": "chatcmpl-a9761ec2-a10d-49b0-879e-0b62d6e8c7b7",
+        "model": "qwen3.7-max",
+        "provider": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+        "effectiveSigner": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+        "rawBody": "{\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"logprobs\":null,\"message\":{\"content\":\"{\\\"move\\\":\\\"e5\\\",\\\"why\\\":\\\"Controls center, opens lines for bishop and queen, classical response.\\\"}\",\"reasoning_content\":\"The position is the starting position after 1. e4.\\nBlack to move.\\nLegal moves: Nc6 Na6 Nh6 Nf6 a6 a5 b6 b5 c6 c5 d6 d5 e6 e5 f6 f5 g6 g5 h6 h5\\nStrongest moves for Black against 1. e4 are generally 1... e5, 1... c5 (Sicilian), 1... e6 (French), 1... c6 (Caro-Kann).\\n1... e5 is the most classical and solid response, leading to open games.\\n1... c5 is also very strong.\\nLet's choose e5.\\nWait, let's just pick e5.\\n\\\"e5\\\" is in the legal moves list.\\nWhy: Controls the center and opens lines for the bishop and queen.\\nMax 12 words.\\n\\\"Controls the center and opens lines for the bishop and queen.\\\" -\\u003e 11 words.\\nOr \\\"Classical response controlling the center and opening lines for pieces.\\\" -\\u003e 10 words.\\nLet's use \\\"e5\\\".\\nWhy: \\\"Controls the center and opens lines for the queen and bishop.\\\" \\nLet's double check.\\nMove: e5\\nWhy: Controls the center and opens lines for the queen and bishop.\\nWait, \\\"e5\\\" is exactly in the list.\\nJSON format: {\\\"move\\\":\\\"e5\\\",\\\"why\\\":\\\"Controls the center and opens lines for the queen and bishop.\\\"}\\nLength of why: 11 words.\\nPerfect.\",\"role\":\"assistant\"}}],\"created\":1787478101,\"id\":\"chatcmpl-a9761ec2-a10d-49b0-879e-0b62d6e8c7b7\",\"model\":\"qwen3.7-max\",\"object\":\"chat.completion\",\"usage\":{\"completion_tokens\":360,\"completion_tokens_details\":{\"reasoning_tokens\":334},\"prompt_tokens\":222,\"prompt_tokens_details\":{\"cached_tokens\":0},\"total_tokens\":582},\"x_0g_trace\":{\"billing\":{\"input_cost\":\"1169940000000000\",\"output_cost\":\"5702400000000000\",\"total_cost\":\"6872340000000000\"},\"provider\":\"0xF203A388e9E70F09ece38046a6D40a89cf896309\",\"request_id\":\"cc2a71f6-7016-43b5-aa24-ef8386a8cf6f\",\"tee_verified\":true}}",
+        "rawBodySha256": "0x917b812b71d1924d5a5ad4845aca0ca18a662179e9fa37aff21e5cceba072053",
+        "requestBodyJson": "{\"model\":\"qwen3.7-max\",\"messages\":[{\"role\":\"system\",\"content\":\"You are FairMate, a chess engine playing a serious game. You are given the position as FEN and the complete list of legal moves in SAN. Choose the strongest move for the side to move. Respond with ONLY a JSON object: {\\\"move\\\":\\\"<one SAN exactly as it appears in the legal list>\\\",\\\"why\\\":\\\"<max 12 words>\\\"} No markdown, no code fences, no other text.\"},{\"role\":\"user\",\"content\":\"Position (FEN): rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1\\nSide to move: Black\\nMove number: 1\\nLegal moves: Nc6 Na6 Nh6 Nf6 a6 a5 b6 b5 c6 c5 d6 d5 e6 e5 f6 f5 g6 g5 h6 h5\\nRecent moves: e4\\nPick exactly one move from the legal list.\"}],\"temperature\":0.2,\"max_tokens\":800,\"response_format\":{\"type\":\"json_object\"},\"enable_thinking\":true,\"reasoning_effort\":\"medium\",\"stream\":false,\"verify_tee\":true}",
+        "requestBodySha256": "0x4b5ab71c66fa846df6e596cef1012347348aa5dff242ae59302e1f3efd5b30c3",
+        "requestConstraints": {
+          "providerAddress": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+          "maxPromptPriceUsd": "0.9",
+          "maxCompletionPriceUsd": "2.6"
+        },
+        "trace": {
+          "requestId": "cc2a71f6-7016-43b5-aa24-ef8386a8cf6f",
+          "provider": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+          "teeVerified": true,
+          "billing": {
+            "inputCostNeuron": "1169940000000000",
+            "outputCostNeuron": "5702400000000000",
+            "totalCostNeuron": "6872340000000000"
+          }
+        },
+        "receiptHash": "0x15a003392f872c3b6855b8b1156a6f1b0aefff071bd7ac708dd19f349f787a53",
+        "latencyMs": 8944
+      }
+    },
+    {
+      "ply": 3,
+      "mover": "model",
+      "san": "Nf3",
+      "why": "Develops knight, attacks e5 pawn, prepares kingside castling.",
+      "fenBefore": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+      "fenAfter": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+      "fenBeforeHash": "0x49ea22321d7900d771107e0e0900d353f3860a4b72d1f4bd4644b765a3d6505b",
+      "fenAfterHash": "0xdabae448ade2367a23dde1d4cd3fcebd9926ced595c6f0fb1c4656be6aa5c4af",
+      "receiptHash": "0x98018320f7385e09d2be7dea571052ccde1dea75570c658848fc0292fd5d5f7e",
+      "receipt": {
+        "scheme": "router-teetls",
+        "chatID": "chatcmpl-ab93e2b8-a9eb-4e8d-b3ed-264cb5c581d2",
+        "model": "qwen3.7-max",
+        "provider": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+        "effectiveSigner": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+        "rawBody": "{\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"logprobs\":null,\"message\":{\"content\":\"{\\\"move\\\":\\\"Nf3\\\",\\\"why\\\":\\\"Develops knight, attacks e5 pawn, prepares kingside castling.\\\"}\",\"reasoning_content\":\"The position is the starting position after 1. e4 e5.\\nWhite to move.\\nLegal moves include Nf3, Bc4, Nc3, d4, f4, etc.\\nThe strongest and most common move is Nf3 (King's Knight Opening).\\nLet's select Nf3.\\nWait, \\\"Nf3\\\" is in the list.\\nI will output {\\\"move\\\": \\\"Nf3\\\", \\\"why\\\": \\\"Develops a piece and attacks the e5 pawn.\\\"}\\nLet's double check the list: Nf3 is there.\\nWhy: Develops knight, attacks e5 pawn, prepares castling. \\nMove: Nf3\\nJSON format required.\\n{\\\"move\\\":\\\"Nf3\\\",\\\"why\\\":\\\"Develops knight, attacks e5 pawn, and prepares castling.\\\"}\\nWait, max 12 words for why.\\n\\\"Develops knight, attacks e5 pawn, and prepares kingside castling.\\\" \\nLet's count:\\n1: Develops\\n2: knight,\\n3: attacks\\n4: e5\\n5: pawn,\\n6: and\\n7: prepares\\n8: kingside\\n9: castling.\\nTotal 9 words.\\nPerfect.\\nNo markdown.\\nOnly JSON.\\n{\\\"move\\\":\\\"Nf3\\\",\\\"why\\\":\\\"Develops knight, attacks e5 pawn, and prepares kingside castling.\\\"}\\nCheck if Nf3 is exactly in the list: \\\"Nf3\\\" is in the list.\\nDone.\",\"role\":\"assistant\"}}],\"created\":1787478110,\"id\":\"chatcmpl-ab93e2b8-a9eb-4e8d-b3ed-264cb5c581d2\",\"model\":\"qwen3.7-max\",\"object\":\"chat.completion\",\"usage\":{\"completion_tokens\":351,\"completion_tokens_details\":{\"reasoning_tokens\":322},\"prompt_tokens\":251,\"prompt_tokens_details\":{\"cached_tokens\":0},\"total_tokens\":602},\"x_0g_trace\":{\"billing\":{\"input_cost\":\"1322770000000000\",\"output_cost\":\"5559840000000000\",\"total_cost\":\"6882610000000000\"},\"provider\":\"0xF203A388e9E70F09ece38046a6D40a89cf896309\",\"request_id\":\"c2128610-367f-443e-93ec-9286968143ea\",\"tee_verified\":true}}",
+        "rawBodySha256": "0x3e6eb2a1bba9f339c2a73eb6ad6e9c6715354aebcaae261c79dd0eeb107f83c8",
+        "requestBodyJson": "{\"model\":\"qwen3.7-max\",\"messages\":[{\"role\":\"system\",\"content\":\"You are FairMate, a chess engine playing a serious game. You are given the position as FEN and the complete list of legal moves in SAN. Choose the strongest move for the side to move. Respond with ONLY a JSON object: {\\\"move\\\":\\\"<one SAN exactly as it appears in the legal list>\\\",\\\"why\\\":\\\"<max 12 words>\\\"} No markdown, no code fences, no other text.\"},{\"role\":\"user\",\"content\":\"Position (FEN): rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2\\nSide to move: White\\nMove number: 2\\nLegal moves: a3 a4 b3 b4 c3 c4 d3 d4 f3 f4 g3 g4 h3 h4 Na3 Nc3 Qe2 Qf3 Qg4 Qh5 Ke2 Be2 Bd3 Bc4 Bb5 Ba6 Ne2 Nf3 Nh3\\nRecent moves: e4 e5\\nPick exactly one move from the legal list.\"}],\"temperature\":0.2,\"max_tokens\":800,\"response_format\":{\"type\":\"json_object\"},\"enable_thinking\":true,\"reasoning_effort\":\"medium\",\"stream\":false,\"verify_tee\":true}",
+        "requestBodySha256": "0x0210fb9961dafb5d4dd591b5df40d75158be5fa6f8e699a6ad9c2265728914b2",
+        "requestConstraints": {
+          "providerAddress": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+          "maxPromptPriceUsd": "0.9",
+          "maxCompletionPriceUsd": "2.6"
+        },
+        "trace": {
+          "requestId": "c2128610-367f-443e-93ec-9286968143ea",
+          "provider": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+          "teeVerified": true,
+          "billing": {
+            "inputCostNeuron": "1322770000000000",
+            "outputCostNeuron": "5559840000000000",
+            "totalCostNeuron": "6882610000000000"
+          }
+        },
+        "receiptHash": "0x98018320f7385e09d2be7dea571052ccde1dea75570c658848fc0292fd5d5f7e",
+        "latencyMs": 10275
+      }
+    },
+    {
+      "ply": 4,
+      "mover": "model",
+      "san": "Nc6",
+      "why": "Develops knight, defends e5 pawn, controls central squares.",
+      "fenBefore": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+      "fenAfter": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+      "fenBeforeHash": "0xdabae448ade2367a23dde1d4cd3fcebd9926ced595c6f0fb1c4656be6aa5c4af",
+      "fenAfterHash": "0xa5f3111e3a2cf236079d8de2e663f6a03b9191573e791ebf39cba21ee1c79375",
+      "receiptHash": "0xa791c3abc892e36d129da0217447b6d5f07855913192117b58c0a65ec644eecb",
+      "receipt": {
+        "scheme": "router-teetls",
+        "chatID": "chatcmpl-12556e73-855f-404a-8d41-d598dc95f6a3",
+        "model": "qwen3.7-max",
+        "provider": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+        "effectiveSigner": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+        "rawBody": "{\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"logprobs\":null,\"message\":{\"content\":\"{\\\"move\\\":\\\"Nc6\\\",\\\"why\\\":\\\"Develops knight, defends e5 pawn, controls central squares.\\\"}\",\"reasoning_content\":\"The position is the King's Pawn Opening, specifically after 1. e4 e5 2. Nf3.\\nBlack to move.\\nLegal moves include Nc6, d6, Nf6, Bc5, d5, f5, etc.\\nThe most common and strongest replies are 2... Nc6 (leading to Ruy Lopez, Italian, Scotch, etc.), 2... Nf6 (Petrov's Defense), and 2... d6 (Philidor).\\nNc6 is generally considered the most flexible and principled move, defending the e5 pawn and developing a piece.\\nLet's choose Nc6.\\nWait, let's double check if Nc6 is in the legal moves list.\\n\\\"Nc6 Na6 Qe7 Qf6 Qg5 Qh4 Ke7 Be7 Bd6 Bc5 Bb4 Ba3 Nh6 Nf6 Ne7 a6 a5 b6 b5 c6 c5 d6 d5 f6 f5 g6 g5 h6 h5\\\"\\nYes, Nc6 is in the list.\\n\\nWhy: Defends e5 pawn while developing a knight to a natural square. (11 words).\\nOr simply: Develops a piece and defends the e5 pawn. (9 words).\\nLet's use \\\"Develops a piece and defends the e5 pawn.\\\"\\nWait, \\\"Develops a knight and defends the e5 pawn.\\\" (9 words).\\nLet's just use \\\"Develops a piece and defends the e5 pawn.\\\"\\nMove: Nc6\\nWhy: Develops a piece and defends the e5 pawn.\\nLength of why: 9 words.\\nPerfect.\\nLet's review the format: {\\\"move\\\":\\\"Nc6\\\",\\\"why\\\":\\\"Develops a piece and defends the e5 pawn.\\\"}\\nNo markdown.\\nDone.\",\"role\":\"assistant\"}}],\"created\":1787478120,\"id\":\"chatcmpl-12556e73-855f-404a-8d41-d598dc95f6a3\",\"model\":\"qwen3.7-max\",\"object\":\"chat.completion\",\"usage\":{\"completion_tokens\":424,\"completion_tokens_details\":{\"reasoning_tokens\":397},\"prompt_tokens\":256,\"prompt_tokens_details\":{\"cached_tokens\":0},\"total_tokens\":680},\"x_0g_trace\":{\"billing\":{\"input_cost\":\"1349120000000000\",\"output_cost\":\"6716160000000000\",\"total_cost\":\"8065280000000000\"},\"provider\":\"0xF203A388e9E70F09ece38046a6D40a89cf896309\",\"request_id\":\"bc73ed58-00c6-4b5e-a3fd-d0cbac25f36f\",\"tee_verified\":true}}",
+        "rawBodySha256": "0xf43df4730cd6e5536996c92374432dc31150d9426b00972cd112ce7148ba2e7f",
+        "requestBodyJson": "{\"model\":\"qwen3.7-max\",\"messages\":[{\"role\":\"system\",\"content\":\"You are FairMate, a chess engine playing a serious game. You are given the position as FEN and the complete list of legal moves in SAN. Choose the strongest move for the side to move. Respond with ONLY a JSON object: {\\\"move\\\":\\\"<one SAN exactly as it appears in the legal list>\\\",\\\"why\\\":\\\"<max 12 words>\\\"} No markdown, no code fences, no other text.\"},{\"role\":\"user\",\"content\":\"Position (FEN): rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2\\nSide to move: Black\\nMove number: 2\\nLegal moves: Nc6 Na6 Qe7 Qf6 Qg5 Qh4 Ke7 Be7 Bd6 Bc5 Bb4 Ba3 Nh6 Nf6 Ne7 a6 a5 b6 b5 c6 c5 d6 d5 f6 f5 g6 g5 h6 h5\\nRecent moves: e4 e5 Nf3\\nPick exactly one move from the legal list.\"}],\"temperature\":0.2,\"max_tokens\":800,\"response_format\":{\"type\":\"json_object\"},\"enable_thinking\":true,\"reasoning_effort\":\"medium\",\"stream\":false,\"verify_tee\":true}",
+        "requestBodySha256": "0x1e94e7552f6439bd6069217f0bf92ad256b83da5f1877b95fb073bf09b08cbc4",
+        "requestConstraints": {
+          "providerAddress": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+          "maxPromptPriceUsd": "0.9",
+          "maxCompletionPriceUsd": "2.6"
+        },
+        "trace": {
+          "requestId": "bc73ed58-00c6-4b5e-a3fd-d0cbac25f36f",
+          "provider": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+          "teeVerified": true,
+          "billing": {
+            "inputCostNeuron": "1349120000000000",
+            "outputCostNeuron": "6716160000000000",
+            "totalCostNeuron": "8065280000000000"
+          }
+        },
+        "receiptHash": "0xa791c3abc892e36d129da0217447b6d5f07855913192117b58c0a65ec644eecb",
+        "latencyMs": 10433
+      }
+    },
+    {
+      "ply": 5,
+      "mover": "model",
+      "san": "Bb5",
+      "why": "Ruy Lopez, the most principled and strongest reply, pressuring e5.",
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+      "fenAfter": "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "fenBeforeHash": "0xa5f3111e3a2cf236079d8de2e663f6a03b9191573e791ebf39cba21ee1c79375",
+      "fenAfterHash": "0x24c8c21daeacc6a32da629bc415a2199d5b07b455a999708881190976669e475",
+      "receiptHash": "0x554df63ec03f5a4bf9050f3d563ca35e94bb962d3363872e0c9a77f5ef5ce8c2",
+      "receipt": {
+        "scheme": "router-teetls",
+        "chatID": "chatcmpl-d658c5ea-ae35-4260-8fb0-ff5e5f749330",
+        "model": "qwen3.7-max",
+        "provider": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+        "effectiveSigner": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+        "rawBody": "{\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"logprobs\":null,\"message\":{\"content\":\"{\\\"move\\\":\\\"Bb5\\\",\\\"why\\\":\\\"Ruy Lopez, the most principled and strongest reply, pressuring e5.\\\"}\",\"reasoning_content\":\"The position is the starting position of the King's Pawn Game after 1. e4 e5 2. Nf3 Nc6.\\nWhite to move.\\nLegal moves include Bb5 (Ruy Lopez), Bc4 (Italian), d4 (Scotch), Nc3 (Four Knights), etc.\\nBb5 is generally considered the strongest and most principled move, leading to the Ruy Lopez.\\nLet's select Bb5.\\nWait, let's double check if Bb5 is in the list.\\nList: Nd4 Nxe5 Ng5 Nh4 Ng1 a3 a4 b3 b4 c3 c4 d3 d4 g3 g4 h3 h4 Na3 Nc3 Qe2 Ke2 Be2 Bd3 Bc4 Bb5 Ba6 Rg1\\nYes, Bb5 is in the list.\\nWhy: Develops bishop, attacks knight defending e5 pawn, classical Ruy Lopez.\\nMax 12 words.\\n\\\"Develops bishop, attacks knight defending e5, entering the classical Ruy Lopez.\\\" \\nLet's just use \\\"Develops bishop and attacks the knight defending the e5 pawn.\\\" \\nOr \\\"Enters the Ruy Lopez, attacking the knight defending the e5 pawn.\\\" \\nLet's use \\\"Enters the Ruy Lopez, attacking the knight defending the e5 pawn.\\\"\\nWait, \\\"Enters the Ruy Lopez, attacking the knight defending the e5 pawn.\\\" is 11 words.\\nLet's count:\\n1. Enters\\n2. the\\n3. Ruy\\n4. Lopez,\\n5. attacking\\n6. the\\n7. knight\\n8. defending\\n9. the\\n10. e5\\n11. pawn.\\nPerfect.\\nMove: Bb5\\nJSON: {\\\"move\\\":\\\"Bb5\\\",\\\"why\\\":\\\"Enters the Ruy Lopez, attacking the knight defending the e5 pawn.\\\"}\\nCheck if Bc4 is better? Bb5 is universally considered slightly better or at least the main line at top level.\\nI'll output Bb5.\",\"role\":\"assistant\"}}],\"created\":1787478131,\"id\":\"chatcmpl-d658c5ea-ae35-4260-8fb0-ff5e5f749330\",\"model\":\"qwen3.7-max\",\"object\":\"chat.completion\",\"usage\":{\"completion_tokens\":478,\"completion_tokens_details\":{\"reasoning_tokens\":447},\"prompt_tokens\":256,\"prompt_tokens_details\":{\"cached_tokens\":0},\"total_tokens\":734},\"x_0g_trace\":{\"billing\":{\"input_cost\":\"1349120000000000\",\"output_cost\":\"7571520000000000\",\"total_cost\":\"8920640000000000\"},\"provider\":\"0xF203A388e9E70F09ece38046a6D40a89cf896309\",\"request_id\":\"fb8c5d15-52ff-4fd3-bdc5-d060b95fd581\",\"tee_verified\":true}}",
+        "rawBodySha256": "0xa0926c2b6d75d93cfba16019c586256f056e78f1b98861ff900cf8efd8e46ee1",
+        "requestBodyJson": "{\"model\":\"qwen3.7-max\",\"messages\":[{\"role\":\"system\",\"content\":\"You are FairMate, a chess engine playing a serious game. You are given the position as FEN and the complete list of legal moves in SAN. Choose the strongest move for the side to move. Respond with ONLY a JSON object: {\\\"move\\\":\\\"<one SAN exactly as it appears in the legal list>\\\",\\\"why\\\":\\\"<max 12 words>\\\"} No markdown, no code fences, no other text.\"},{\"role\":\"user\",\"content\":\"Position (FEN): r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3\\nSide to move: White\\nMove number: 3\\nLegal moves: Nd4 Nxe5 Ng5 Nh4 Ng1 a3 a4 b3 b4 c3 c4 d3 d4 g3 g4 h3 h4 Na3 Nc3 Qe2 Ke2 Be2 Bd3 Bc4 Bb5 Ba6 Rg1\\nRecent moves: e4 e5 Nf3 Nc6\\nPick exactly one move from the legal list.\"}],\"temperature\":0.2,\"max_tokens\":800,\"response_format\":{\"type\":\"json_object\"},\"enable_thinking\":true,\"reasoning_effort\":\"medium\",\"stream\":false,\"verify_tee\":true}",
+        "requestBodySha256": "0xcd599ecfba9122678017b88fa4a1434b67f9cb2cdd335dd2304de2684e9ff2d3",
+        "requestConstraints": {
+          "providerAddress": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+          "maxPromptPriceUsd": "0.9",
+          "maxCompletionPriceUsd": "2.6"
+        },
+        "trace": {
+          "requestId": "fb8c5d15-52ff-4fd3-bdc5-d060b95fd581",
+          "provider": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+          "teeVerified": true,
+          "billing": {
+            "inputCostNeuron": "1349120000000000",
+            "outputCostNeuron": "7571520000000000",
+            "totalCostNeuron": "8920640000000000"
+          }
+        },
+        "receiptHash": "0x554df63ec03f5a4bf9050f3d563ca35e94bb962d3363872e0c9a77f5ef5ce8c2",
+        "latencyMs": 11300
+      }
+    },
+    {
+      "ply": 6,
+      "mover": "model",
+      "san": "a6",
+      "why": "Challenges the bishop, gaining space and forcing White's decision.",
+      "fenBefore": "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      "fenAfter": "r1bqkbnr/1ppp1ppp/p1n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4",
+      "fenBeforeHash": "0x24c8c21daeacc6a32da629bc415a2199d5b07b455a999708881190976669e475",
+      "fenAfterHash": "0x67f57996d6162f85184f5e8443c370ed63ba572e866ff8d92e64fbe5467d3c20",
+      "receiptHash": "0x98f3f2c833ccb67d861af2b41e2a80562cd8970a2528ff3f6de3125f04d868fb",
+      "receipt": {
+        "scheme": "router-teetls",
+        "chatID": "chatcmpl-ea104d12-fc33-48d2-8f5d-95423f4c8fae",
+        "model": "qwen3.7-max",
+        "provider": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+        "effectiveSigner": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+        "rawBody": "{\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"logprobs\":null,\"message\":{\"content\":\"{\\\"move\\\":\\\"a6\\\",\\\"why\\\":\\\"Challenges the bishop, gaining space and forcing White's decision.\\\"}\",\"reasoning_content\":\"The position is the Ruy Lopez opening: 1. e4 e5 2. Nf3 Nc6 3. Bb5.\\nBlack to move.\\nLegal moves include a6, Nf6, Bc5, d6, f5, etc.\\nThe most common and arguably strongest move is 3... a6 (Morphy Defense).\\nLet's select a6.\\nWait, \\\"a6\\\" is in the legal list.\\nWhy: Challenges the bishop, preparing b5 and maintaining flexibility. \\nLet's double check.\\nFEN: r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3\\nMove: a6.\\nReason: Challenges the bishop, gaining space and preparing b5. \\nJSON format: {\\\"move\\\":\\\"a6\\\",\\\"why\\\":\\\"Challenges the bishop, gaining space and preparing b5.\\\"}\\nWait, max 12 words.\\n\\\"Challenges the bishop, gaining space and preparing b5.\\\" - 8 words.\\nPerfect.\\nLet's consider Nf6 (Berlin). Also good, but a6 is the main line and most popular.\\nI'll output a6.\",\"role\":\"assistant\"}}],\"created\":1787478142,\"id\":\"chatcmpl-ea104d12-fc33-48d2-8f5d-95423f4c8fae\",\"model\":\"qwen3.7-max\",\"object\":\"chat.completion\",\"usage\":{\"completion_tokens\":307,\"completion_tokens_details\":{\"reasoning_tokens\":281},\"prompt_tokens\":271,\"prompt_tokens_details\":{\"cached_tokens\":0},\"total_tokens\":578},\"x_0g_trace\":{\"billing\":{\"input_cost\":\"1428170000000000\",\"output_cost\":\"4862880000000000\",\"total_cost\":\"6291050000000000\"},\"provider\":\"0xF203A388e9E70F09ece38046a6D40a89cf896309\",\"request_id\":\"5d859190-02a4-4f82-b037-ff18c5382e64\",\"tee_verified\":true}}",
+        "rawBodySha256": "0xbb39581a34d6b435f1550a4a7e033d3021def5cf5dc07f8757782cdbe0825ca1",
+        "requestBodyJson": "{\"model\":\"qwen3.7-max\",\"messages\":[{\"role\":\"system\",\"content\":\"You are FairMate, a chess engine playing a serious game. You are given the position as FEN and the complete list of legal moves in SAN. Choose the strongest move for the side to move. Respond with ONLY a JSON object: {\\\"move\\\":\\\"<one SAN exactly as it appears in the legal list>\\\",\\\"why\\\":\\\"<max 12 words>\\\"} No markdown, no code fences, no other text.\"},{\"role\":\"user\",\"content\":\"Position (FEN): r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3\\nSide to move: Black\\nMove number: 3\\nLegal moves: Rb8 Qe7 Qf6 Qg5 Qh4 Ke7 Be7 Bd6 Bc5 Bb4 Ba3 Nh6 Nf6 Nge7 a6 a5 b6 d6 d5 f6 f5 g6 g5 h6 h5 Nb8 Nce7 Nd4 Nb4 Na5\\nRecent moves: e4 e5 Nf3 Nc6 Bb5\\nPick exactly one move from the legal list.\"}],\"temperature\":0.2,\"max_tokens\":800,\"response_format\":{\"type\":\"json_object\"},\"enable_thinking\":true,\"reasoning_effort\":\"medium\",\"stream\":false,\"verify_tee\":true}",
+        "requestBodySha256": "0xd6d04f9d8ed9e15f2a518756b974d3bbe1d22d0403d949ed95ecee3ebef5332a",
+        "requestConstraints": {
+          "providerAddress": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+          "maxPromptPriceUsd": "0.9",
+          "maxCompletionPriceUsd": "2.6"
+        },
+        "trace": {
+          "requestId": "5d859190-02a4-4f82-b037-ff18c5382e64",
+          "provider": "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+          "teeVerified": true,
+          "billing": {
+            "inputCostNeuron": "1428170000000000",
+            "outputCostNeuron": "4862880000000000",
+            "totalCostNeuron": "6291050000000000"
+          }
+        },
+        "receiptHash": "0x98f3f2c833ccb67d861af2b41e2a80562cd8970a2528ff3f6de3125f04d868fb",
+        "latencyMs": 9101
+      }
+    }
+  ],
+  "ranAt": "2026-08-23T09:42:30.803Z"
+}

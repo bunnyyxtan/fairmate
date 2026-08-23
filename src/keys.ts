@@ -14,6 +14,11 @@ export const PROJECT_ROOT = resolve(__dirname, "..");
 export function loadPrivateKey(): string {
   const fromEnv = process.env.OG_WALLET_PRIVATE_KEY?.trim();
   if (fromEnv) return fromEnv;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "Production requires OG_WALLET_PRIVATE_KEY in the environment; file-backed burner keys are disabled.",
+    );
+  }
   try {
     const k = readFileSync(resolve(PROJECT_ROOT, ".wallet", "dev-testnet.key"), "utf8").trim();
     if (k) return k;

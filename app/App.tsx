@@ -55,13 +55,15 @@ export default function App() {
     }
   }, []);
 
-  const shouldPoll = game && (
-    game.status === "model_thinking" ||
-    (game.result === "ongoing" && game.clock.active === null) ||
-    game.startTx.status === "pending" ||
-    game.endTx?.status === "pending" ||
-    game.awardTx?.status === "pending" ||
-    game.plies.some((ply) => ply.chain.status === "pending")
+  // Poll while an action is in flight too: if a move/resign response is lost
+  // (timeout, instance swap), the authoritative state still reaches the UI.
+  const shouldPoll = Boolean(game) && (submitting ||
+    game!.status === "model_thinking" ||
+    (game!.result === "ongoing" && game!.clock.active === null) ||
+    game!.startTx.status === "pending" ||
+    game!.endTx?.status === "pending" ||
+    game!.awardTx?.status === "pending" ||
+    game!.plies.some((ply) => ply.chain.status === "pending")
   );
   useEffect(() => {
     if (!game || !gameToken || !shouldPoll) return;
@@ -70,7 +72,11 @@ export default function App() {
     const poll = async () => {
       try {
         const next = await api.game(id, gameToken);
-        if (active) { setGame(next); setApiError(null); }
+        // Never let a slow poll overwrite fresher state from a POST response.
+        if (active) {
+          setGame((current) => (current && current.gameId === next.gameId && current.updatedAt > next.updatedAt ? current : next));
+          setApiError(null);
+        }
       } catch (error) {
         if (active) setApiError(error instanceof Error ? error.message : "Game polling failed.");
       }
@@ -86,7 +92,23 @@ export default function App() {
     setPendingAction(kind);
     setApiError(null);
     try { setGame(await work()); }
-    catch (error) { setApiError(error instanceof Error ? error.message : "The request failed."); }
+    catch (error) {
+      setApiError(error instanceof Error ? error.message : "The request failed.");
+      // The request may have landed server-side even though the response was
+      // lost. Re-sync the authoritative state a few times so the UI never
+      // stays frozen on a stale phase after a timeout.
+      const id = game?.gameId;
+      const token = gameToken;
+      if (id && token) {
+        for (const delayMs of [2_000, 10_000, 30_000]) {
+          window.setTimeout(() => {
+            void api.game(id, token)
+              .then((next) => setGame((current) => (current && current.gameId === next.gameId && current.updatedAt > next.updatedAt ? current : next)))
+              .catch(() => undefined);
+          }, delayMs);
+        }
+      }
+    }
     finally { setSubmitting(false); setPendingAction(null); }
   }
   const start = (address?: string) => {

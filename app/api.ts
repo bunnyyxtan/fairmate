@@ -8,11 +8,26 @@ export class ApiFailure extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${apiRoot}/${path}`, {
-    ...init,
-    headers: init?.body ? { "Content-Type": "application/json", ...init.headers } : init?.headers,
-  });
+const DEFAULT_TIMEOUT_MS = 30_000;
+
+function isTimeout(error: unknown): boolean {
+  return error instanceof DOMException && (error.name === "TimeoutError" || error.name === "AbortError");
+}
+
+async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiRoot}/${path}`, {
+      ...init,
+      headers: init?.body ? { "Content-Type": "application/json", ...init.headers } : init?.headers,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (error) {
+    if (isTimeout(error)) {
+      throw new ApiFailure("The request timed out, the game will re-sync automatically.", 0);
+    }
+    throw error;
+  }
   if (!response.ok) {
     let message = `Request failed (${response.status})`;
     try {
@@ -65,9 +80,16 @@ export const api = {
       headers: gameHeaders(accessToken),
     }),
   downloadEvidence: async (id: string, accessToken: string) => {
-    const response = await fetch(`${apiRoot}/games/${encodeURIComponent(id)}/evidence`, {
-      headers: gameHeaders(accessToken),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${apiRoot}/games/${encodeURIComponent(id)}/evidence`, {
+        headers: gameHeaders(accessToken),
+        signal: AbortSignal.timeout(45_000),
+      });
+    } catch (error) {
+      if (isTimeout(error)) throw new ApiFailure("Evidence download timed out, retry shortly.", 0);
+      throw error;
+    }
     if (!response.ok) {
       let message = `Evidence download failed (${response.status})`;
       try {

@@ -63,7 +63,7 @@ Production also fails closed unless Router reports the exact pinned model/provid
 | Entry | exactly `0.1 OG` staked to the ChallengePot before a prize game (verified + replay-locked at admission) |
 | Prize | `0.2 OG` per player win: the `0.1 OG` stake back plus a `0.1 OG` bounty |
 | Refund | draws and aborted games return the stake via `defund`, visible as `Defunded` events |
-| Verification | **581/581 checks passed** against the mainnet evidence set |
+| Verification | **604/604 checks passed** against the mainnet evidence set |
 
 ### Live contracts and funding
 
@@ -89,7 +89,7 @@ Production also fails closed unless Router reports the exact pinned model/provid
 | Award | [`0xac8277…fff8`](https://chainscan.0g.ai/tx/0xac8277b8f730ea565884aaac3829c2b96049f5af831c2e6de64f0a5f51b8fff8) — **0.1 OG** |
 | Production pot after payout | **2.9 OG** |
 
-The full game contains 31 plies with exact Router evidence for every Qwen move. `pnpm run verify -- --network=mainnet` completed with **581/581 checks passed**.
+The full game contains 31 plies with exact Router evidence for every Qwen move. `pnpm run verify -- --network=mainnet` completed with **604/604 checks passed** (including the live refund drill).
 
 ### Evidence-derived budget reconciliation
 

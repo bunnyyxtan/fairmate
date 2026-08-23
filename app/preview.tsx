@@ -32,6 +32,7 @@ const chain = {
 const pot: PotInfo = {
   chain,
   potBalanceOg: "2.90",
+  entryFeeOg: "0.1",
   perWinBountyOg: "0.1",
   dailyCapOg: "0.5",
   paidInWindowOg: "0.0",

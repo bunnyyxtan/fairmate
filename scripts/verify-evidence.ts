@@ -362,6 +362,134 @@ async function verifyPotDrill(file: string): Promise<void> {
   }
 }
 
+interface RefundDrillEvidence {
+  kind: string;
+  chainId: number;
+  site: string;
+  potAddress: string;
+  player: string;
+  gameId: string;
+  stakeTx: string;
+  endTx: string;
+  refundTx: string;
+  steps: Array<{ n: number; action: string; pass: boolean; txHash?: string; block?: number }>;
+  gameEvidence: GameEvidence & {
+    endReason?: string;
+    refundTx?: { status: string; txHash?: string; amountOg?: string } | null;
+    stake?: { from: string; txHash: string; amountOg: string } | null;
+  };
+}
+
+/**
+ * Refund drill: a real staked game on the production site that ended draw/aborted.
+ * Re-derives the whole money path from the chain: exact stake in (Funded), payout
+ * address bound at game start (GameStarted), refundable result anchored (GameEnded
+ * + journal storage), exact stake back out (Defunded), in that block order.
+ */
+async function verifyRefundDrill(file: string): Promise<void> {
+  section(`refund drill: ${file}`);
+  const d = JSON.parse(readFileSync(file, "utf8")) as RefundDrillEvidence;
+  selectEvidenceNetwork(d.chainId);
+  must(d.kind === "fairmate-refund-drill", `recognized evidence kind (${d.kind})`);
+  must(d.chainId === net.chainId, `evidence chainId ${d.chainId} matches verifier network ${net.chainId}`);
+  must(d.steps.length > 0 && d.steps.every((s) => s.pass), `drill file reports ${d.steps.length}/${d.steps.length} steps passed`);
+
+  const ge = d.gameEvidence;
+  must(ge.kind === "fairmate-game-evidence", "embedded game evidence has the standard kind");
+  must(ge.gameId === d.gameId, "embedded game evidence is for the drill game");
+  must(ge.result === "draw" || ge.result === "aborted", `game result is refundable (${ge.result})`);
+  must((ge.playerAddress ?? "").toLowerCase() === d.player.toLowerCase(), "embedded payout address is the drill player");
+  must(ge.stake?.txHash === d.stakeTx, "embedded stake record matches the drill stake tx");
+  must(
+    ge.refundTx?.status === "confirmed" && ge.refundTx.txHash === d.refundTx,
+    "embedded evidence records the refund as confirmed with the drill tx hash",
+  );
+  must(ge.potAddress.toLowerCase() === d.potAddress.toLowerCase(), "embedded pot address matches the drill pot");
+
+  const pot = new ethers.Contract(d.potAddress, build.ChallengePot.abi, provider);
+  must(
+    ((await pot.journal()) as string).toLowerCase() === ge.journalAddress.toLowerCase(),
+    "pot is immutably bound to the journal in the evidence",
+  );
+
+  // ---- stake in: player -> pot, exact value, Funded event ------------------
+  const stakeTx = await provider.getTransaction(d.stakeTx);
+  const stakeRcpt = await provider.getTransactionReceipt(d.stakeTx);
+  const stakeWei = stakeTx?.value ?? 0n;
+  must(
+    !!stakeTx && !!stakeRcpt && stakeRcpt.status === 1 &&
+      stakeTx.from.toLowerCase() === d.player.toLowerCase() &&
+      (stakeTx.to ?? "").toLowerCase() === d.potAddress.toLowerCase() &&
+      stakeWei > 0n,
+    `stake tx mined: player sent ${ethers.formatEther(stakeWei)} OG to the pot`,
+  );
+  must(ge.stake?.amountOg === ethers.formatEther(stakeWei), `recorded stake amount recomputes (${ge.stake?.amountOg} OG)`);
+  {
+    const { ok, events } = await txEvents(d.stakeTx, potIface, d.potAddress);
+    const funded = events.find((e) => e.name === "Funded");
+    must(
+      ok && !!funded &&
+        (funded.args[0] as string).toLowerCase() === d.player.toLowerCase() &&
+        (funded.args[1] as bigint) === stakeWei,
+      "Funded event binds the exact stake to the player",
+    );
+  }
+
+  // ---- journal: payout address bound at start, refundable result anchored --
+  const startHash = ge.startTx?.txHash;
+  must(!!startHash, "startGame tx hash recorded");
+  if (startHash) {
+    const { ok, events } = await txEvents(startHash, journalIface, ge.journalAddress);
+    const started = events.find((e) => e.name === "GameStarted");
+    must(
+      ok && !!started && started.args[0] === d.gameId &&
+        (started.args[2] as string).toLowerCase() === d.player.toLowerCase(),
+      "GameStarted binds the drill game to the player payout address",
+    );
+  }
+  {
+    const { ok, events } = await txEvents(d.endTx, journalIface, ge.journalAddress);
+    const ended = events.find((e) => e.name === "GameEnded");
+    must(
+      ok && !!ended && ended.args[0] === d.gameId &&
+        Number(ended.args[1]) === RESULT_ENUM[ge.result] &&
+        ended.args[2] === canonicalHash(ge.finalFen) &&
+        Number(ended.args[3]) === ge.plies.length,
+      `GameEnded anchors the ${ge.result} result on the journal`,
+    );
+  }
+  const journal = new ethers.Contract(ge.journalAddress, build.MoveJournal.abi, provider);
+  const g = (await journal.getGame(d.gameId)) as { player: string; moveCount: bigint; result: bigint; exists: boolean };
+  must(
+    g.exists && Number(g.result) === RESULT_ENUM[ge.result] && g.player.toLowerCase() === d.player.toLowerCase(),
+    "journal storage agrees: refundable result for the recorded player",
+  );
+
+  // ---- refund out: Defunded returns the exact stake to the player ----------
+  const refundRcpt = await provider.getTransactionReceipt(d.refundTx);
+  {
+    const { ok, events } = await txEvents(d.refundTx, potIface, d.potAddress);
+    const def = events.find((e) => e.name === "Defunded");
+    must(ok && !!def, "refund tx succeeded on the pot");
+    if (def) {
+      must((def.args[0] as string).toLowerCase() === d.player.toLowerCase(), "Defunded.to is the player wallet");
+      must((def.args[1] as bigint) === stakeWei, `Defunded.amount equals the stake to the wei (${ethers.formatEther(stakeWei)} OG)`);
+      must(ge.refundTx?.amountOg === ethers.formatEther(def.args[1] as bigint), "recorded refund amount recomputes");
+    }
+  }
+
+  // ---- order: stake -> admission -> end anchor -> refund --------------------
+  const startRcpt = startHash ? await provider.getTransactionReceipt(startHash) : null;
+  const endRcpt = await provider.getTransactionReceipt(d.endTx);
+  must(
+    !!stakeRcpt && !!startRcpt && !!endRcpt && !!refundRcpt &&
+      stakeRcpt.blockNumber <= startRcpt.blockNumber &&
+      startRcpt.blockNumber <= endRcpt.blockNumber &&
+      endRcpt.blockNumber <= refundRcpt.blockNumber,
+    "block order: stake, admission, abort anchor, refund",
+  );
+}
+
 async function verifyDeployment(file: string): Promise<void> {
   section(`deployment: ${file}`);
   const d = JSON.parse(readFileSync(file, "utf8")) as {
@@ -388,10 +516,11 @@ async function main() {
 
   if (fileArg) {
     const file = resolve(fileArg);
-    const header = JSON.parse(readFileSync(file, "utf8")) as { chainId?: number };
+    const header = JSON.parse(readFileSync(file, "utf8")) as { chainId?: number; kind?: string };
     if (typeof header.chainId === "number") selectEvidenceNetwork(header.chainId);
     console.log(`FairMate evidence verifier — network ${net.displayName} (${net.evmRpc})`);
-    await verifyGameEvidence(file);
+    if (header.kind === "fairmate-refund-drill") await verifyRefundDrill(file);
+    else await verifyGameEvidence(file);
   } else {
     const requested = findFlag(process.argv, "network") ?? "mainnet";
     if (requested !== "mainnet" && requested !== "testnet") {
@@ -402,10 +531,12 @@ async function main() {
     const deployment = resolve(EVIDENCE_DIR, `deployment.${net.name}.json`);
     const sample = resolve(EVIDENCE_DIR, `sample-game.${net.name}.json`);
     const drill = resolve(EVIDENCE_DIR, `pot-drill.${net.name}.json`);
+    const refundDrill = resolve(EVIDENCE_DIR, `refund-drill.${net.name}.json`);
     if (existsSync(deployment)) await verifyDeployment(deployment);
     if (existsSync(sample)) await verifyGameEvidence(sample);
     if (existsSync(drill)) await verifyPotDrill(drill);
-    if (!existsSync(deployment) && !existsSync(sample) && !existsSync(drill)) {
+    if (existsSync(refundDrill)) await verifyRefundDrill(refundDrill);
+    if (!existsSync(deployment) && !existsSync(sample) && !existsSync(drill) && !existsSync(refundDrill)) {
       console.error("no evidence files found and no --file given");
       process.exit(2);
     }

@@ -178,7 +178,7 @@ export interface PotInfo {
   chain: ChainInfo;
   potBalanceOg: string;
   perWinBountyOg: string;
-  /** OG a player must stake into the pot to start a prize game */
+  /** 0G a player must stake into the pot to start a prize game */
   entryFeeOg: string;
   dailyCapOg: string;
   paidInWindowOg: string;

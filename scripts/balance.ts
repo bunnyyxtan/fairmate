@@ -12,19 +12,19 @@ const addr = await wallet.getAddress();
 console.log("network:", net.displayName, `(chainId ${net.chainId})`);
 console.log("wallet :", addr);
 const bal = await provider.getBalance(addr);
-console.log("balance:", ethers.formatEther(bal), "OG");
+console.log("balance:", ethers.formatEther(bal), "0G");
 
 if (process.env.CHECK_DIRECT_LEDGER === "1") {
   const ledger = new ethers.Contract(net.ledgerManager, LEDGER_MANAGER_ABI, provider);
   try {
     const min: bigint = await ledger.MIN_ACCOUNT_BALANCE();
-    console.log("direct ledger MIN_ACCOUNT_BALANCE:", ethers.formatEther(min), "OG");
+    console.log("direct ledger MIN_ACCOUNT_BALANCE:", ethers.formatEther(min), "0G");
   } catch (e) {
     console.log("direct ledger MIN_ACCOUNT_BALANCE: read failed:", (e as Error).message.slice(0, 120));
   }
   try {
     const l = (await ledger.getLedger(addr)) as { availableBalance: bigint; totalBalance: bigint };
-    console.log("direct ledger available:", ethers.formatEther(l.availableBalance), "OG");
+    console.log("direct ledger available:", ethers.formatEther(l.availableBalance), "0G");
   } catch {
     console.log("direct ledger: none for this wallet yet");
   }

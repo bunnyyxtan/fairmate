@@ -89,7 +89,7 @@ export function Lobby({
     if (!prizeMode) return onStart(undefined);
     if (invalidAddress || missingAddress) return setValidation(validationMessage);
     if (invalidStakeTx || missingStakeTx) {
-      return setValidation(`Paste the transaction hash of your ${fee} OG stake to the ChallengePot.`);
+      return setValidation(`Paste the transaction hash of your ${fee} 0G stake to the ChallengePot.`);
     }
     setValidation("");
     onStart(trimmedAddress, trimmedStakeTx);
@@ -129,7 +129,7 @@ export function Lobby({
             chainId: chainHex,
             chainName: pot.chain.network,
             rpcUrls: [pot.chain.chainId === 16661 ? "https://evmrpc.0g.ai" : "https://evmrpc-testnet.0g.ai"],
-            nativeCurrency: { name: "OG", symbol: "OG", decimals: 18 },
+            nativeCurrency: { name: "0G", symbol: "0G", decimals: 18 },
             blockExplorerUrls: [pot.chain.explorer],
           }],
         });
@@ -149,24 +149,24 @@ export function Lobby({
   }
 
   const hint = prizeMode
-    ? `Win and ${bounty} OG lands on this address: your ${fee} OG stake back plus the bounty. Draws and aborted games refund the stake automatically. No move made? It aborts and refunds. After your first move the clock binds, a flag fall keeps the stake in the pot.`
-    : `No wallet needed. Wins are recorded on-chain for the record, prize games stake ${fee} OG and pay ${bounty} OG on a win.`;
+    ? `Win and ${bounty} 0G lands on this address: your ${fee} 0G stake back plus the bounty. Draws and aborted games refund the stake automatically. No move made? It aborts and refunds. After your first move the clock binds, a flag fall keeps the stake in the pot.`
+    : `No wallet needed. Wins are recorded on-chain for the record, prize games stake ${fee} 0G and pay ${bounty} 0G on a win.`;
 
   return (
     <>
       <section className="cl-intro">
         <div><span className="cl-kicker"><Crown /> Prize round · {pot.chain.network}</span><h1>BEAT THE BOT.<br /><em>CLAIM THE POT.</em></h1></div>
         <div className="cl-intro-side">
-          <p>One board. Five minutes each. Stake {fee} OG, beat {model}, and a journal-recorded win pays {bounty} OG.</p>
+          <p>One board. Five minutes each. Stake {fee} 0G, beat {model}, and a journal-recorded win pays {bounty} 0G.</p>
           <button type="button" className="cl-proof-toggle" onClick={onRules}><ShieldCheck /> Why this match is fair <ChevronRight /></button>
         </div>
       </section>
       <section className="cl-lobby" id="challenge">
         <article className="cl-pot">
           <header><span>Live prize pool</span><Trophy /></header>
-          <div className="cl-pot-value"><small>Available now</small><strong>{pot.potBalanceOg} OG</strong></div>
-          <div className="cl-payout"><span>Entry stake per prize game</span><b>{fee} OG</b></div>
-          <div className="cl-payout"><span>Each journal-recorded human win</span><b>{bounty} OG</b></div>
+          <div className="cl-pot-value"><small>Available now</small><strong>{pot.potBalanceOg} 0G</strong></div>
+          <div className="cl-payout"><span>Entry stake per prize game</span><b>{fee} 0G</b></div>
+          <div className="cl-payout"><span>Each journal-recorded human win</span><b>{bounty} 0G</b></div>
           <div className="cl-pot-note"><CheckCircle2 /><p>Payouts are bound to the on-chain game journal, not a private server result. Draws and aborted games refund the stake.</p></div>
           <div className="fm-contract-links">{addressLink(pot, "ChallengePot", pot.chain.potAddress)}{addressLink(pot, "MoveJournal", pot.chain.journalAddress)}</div>
         </article>
@@ -180,7 +180,7 @@ export function Lobby({
           <form className="fm-address-form is-compact" onSubmit={submit}>
             <div className="cl-mode-switch" role="radiogroup" aria-label="Game mode">
               <button type="button" role="radio" aria-checked={prizeMode} className={prizeMode ? "is-selected" : ""} disabled={busy} onClick={() => pickMode("prize")}>
-                <strong>Play for the prize</strong><span>Stake {fee} OG · win {bounty} OG</span>
+                <strong>Play for the prize</strong><span>Stake {fee} 0G · win {bounty} 0G</span>
               </button>
               <button type="button" role="radio" aria-checked={!prizeMode} className={!prizeMode ? "is-selected" : ""} disabled={busy} onClick={() => pickMode("practice")}>
                 <strong>Practice game</strong><span>Free · no payout, same proof</span>
@@ -193,9 +193,9 @@ export function Lobby({
                   <input id="payout" name="payoutAddress" value={address} onChange={(event) => changeAddress(event.target.value)} placeholder="0x…" inputMode="text" autoComplete="off" spellCheck={false} aria-describedby="address-hint" aria-invalid={invalidAddress} aria-errormessage={validation ? "address-hint" : undefined} disabled={busy} />
                 </div>
                 <div className={`cl-stake-panel ${addressReady ? "" : "is-waiting"}`}>
-                  <label htmlFor="staketx">Entry stake <span>{fee} OG from that address</span></label>
+                  <label htmlFor="staketx">Entry stake <span>{fee} 0G from that address</span></label>
                   <p className="cl-stake-how">
-                    Send exactly {fee} OG from your payout wallet to the ChallengePot, then paste the transaction hash.
+                    Send exactly {fee} 0G from your payout wallet to the ChallengePot, then paste the transaction hash.
                   </p>
                   <div className="cl-stake-actions">
                     <button type="button" className={copiedPot ? "is-copied" : ""} onClick={() => void copyPotAddress()} disabled={busy}>
@@ -203,7 +203,7 @@ export function Lobby({
                     </button>
                     {wallet && (
                       <button type="button" className="is-wallet" onClick={() => void stakeWithWallet()} disabled={busy || staking}>
-                        <Wallet size={14} /> {staking ? "Waiting for your wallet…" : `Stake ${fee} OG with browser wallet`}
+                        <Wallet size={14} /> {staking ? "Waiting for your wallet…" : `Stake ${fee} 0G with browser wallet`}
                       </button>
                     )}
                   </div>
@@ -229,7 +229,7 @@ export function Lobby({
             )}
           </form>
           {error && <p className="api-error" role="alert">{error}</p>}
-          <ul><li><ShieldCheck /> {pot.verificationScheme === "router-teetls" ? "Router-verified TeeTLS moves" : "Browser-verified TeeML moves"}</li><li><Clock3 /> 5+0 blitz clocks, binding after your first move</li><li><Trophy /> Win pays {bounty} OG, draws refund the stake</li></ul>
+          <ul><li><ShieldCheck /> {pot.verificationScheme === "router-teetls" ? "Router-verified TeeTLS moves" : "Browser-verified TeeML moves"}</li><li><Clock3 /> 5+0 blitz clocks, binding after your first move</li><li><Trophy /> Win pays {bounty} 0G, draws refund the stake</li></ul>
         </article>
       </section>
     </>

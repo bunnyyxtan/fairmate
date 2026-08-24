@@ -87,7 +87,7 @@ function HonestResult({
       {game.stake && (game.result === "draw" || game.result === "aborted") && (
         game.refundTx?.status === "confirmed" ? (
           <p className="cl-refund-note">
-            Your {game.refundTx.amountOg ?? game.stake.amountOg} OG stake was refunded.{" "}
+            Your {game.refundTx.amountOg ?? game.stake.amountOg} 0G stake was refunded.{" "}
             {game.refundTx.txHash && (
               <a href={explorerUrl(game.chain.explorer, "tx", game.refundTx.txHash)} target="_blank" rel="noreferrer">
                 Refund transaction <ExternalLink size={14} />
@@ -97,11 +97,11 @@ function HonestResult({
         ) : game.refundTx?.status === "failed" ? (
           <p className="api-error" role="alert">Stake refund failed: {game.refundTx.error}. The pot owner can still return it manually.</p>
         ) : (
-          <p>Your {game.stake.amountOg} OG stake refund is queued and settles in the background.</p>
+          <p>Your {game.stake.amountOg} 0G stake refund is queued and settles in the background.</p>
         )
       )}
       {game.stake && game.result === "model_win" && (
-        <p>Your {game.stake.amountOg} OG entry stake stays in the pot, as per the prize rules.</p>
+        <p>Your {game.stake.amountOg} 0G entry stake stays in the pot, as per the prize rules.</p>
       )}
       <button type="button" className="evidence-link" onClick={onDownload} disabled={anchorsLeft > 0}>
         <Download /> {anchorsLeft > 0 ? `Evidence unlocks after chain sync · ${anchorsLeft} tx left` : "Download game evidence"}
@@ -275,14 +275,14 @@ export function GameView({
             <Trophy />
             {game.playerAddress ? (
               <p>
-                {game.stake ? <>Staked <b>{game.stake.amountOg} OG</b> · a win pays <b>{bounty ?? "0.2"} OG</b> to{" "}</> : <>Playing for <b>{bounty ?? "0.2"} OG</b> · a journal-recorded win pays{" "}</>}
+                {game.stake ? <>Staked <b>{game.stake.amountOg} 0G</b> · a win pays <b>{bounty ?? "0.2"} 0G</b> to{" "}</> : <>Playing for <b>{bounty ?? "0.2"} 0G</b> · a journal-recorded win pays{" "}</>}
                 <code>{shortAddress(game.playerAddress)}</code> automatically.
                 {game.stake && <> Leaving does not pause your clock.</>}
               </p>
             ) : (
               <p>
                 Practice run, no stake and no payout. Wins still go on-chain for the record, prize
-                games pay <b>{bounty ?? "0.2"} OG</b>.
+                games pay <b>{bounty ?? "0.2"} 0G</b>.
               </p>
             )}
           </div>

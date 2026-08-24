@@ -180,7 +180,7 @@ export interface LedgerFundingResult {
 
 /**
  * Fund the Direct Compute ledger, bypassing the SDK 0.9 broker's WRONG
- * hardcoded 3 OG minimum; the on-chain minimum is queried at runtime.
+ * hardcoded 3 0G minimum; the on-chain minimum is queried at runtime.
  * We never silently spend: no ledger + no explicit deposit → hard error.
  */
 export async function ensureLedgerFunded(params: {
@@ -223,7 +223,7 @@ export async function ensureLedgerFunded(params: {
     const depositWei = ethers.parseEther(String(depositOg));
     if (depositWei < onChainMinWei) {
       throw new Error(
-        `0G Compute: deposit ${depositOg} OG is below the on-chain ledger minimum ${onChainMinAccountBalanceOg} OG.`,
+        `0G Compute: deposit ${depositOg} 0G is below the on-chain ledger minimum ${onChainMinAccountBalanceOg} 0G.`,
       );
     }
     const tx = await ledger.addLedger("fairmate-proof", { value: depositWei });

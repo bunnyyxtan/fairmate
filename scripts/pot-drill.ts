@@ -174,11 +174,11 @@ async function main() {
   const fundTx = await wallet.sendTransaction({ to: potAddress, value: ethers.parseEther("0.002") });
   await waitForReceipt(fundTx, "fund drill pot");
   record({
-    action: "deploy drill journal+pot, configure bounty 0.001/cap 0.001, fund 0.002 OG",
+    action: "deploy drill journal+pot, configure bounty 0.001/cap 0.001, fund 0.002 0G",
     kind: "tx",
     txHash: fundTx.hash,
-    expected: "pot live with 0.002 OG",
-    observed: `pot balance ${ethers.formatEther(await rawBalance(potAddress))} OG`,
+    expected: "pot live with 0.002 0G",
+    observed: `pot balance ${ethers.formatEther(await rawBalance(potAddress))} 0G`,
     pass: (await rawBalance(potAddress)) === ethers.parseEther("0.002"),
   });
 
@@ -223,8 +223,8 @@ async function main() {
     kind: "tx",
     txHash: awardTx.hash,
     block: awardRcpt?.blockNumber,
-    expected: `player ${player} receives 0.001 OG`,
-    observed: `player balance ${ethers.formatEther(before)} -> ${ethers.formatEther(after)} OG`,
+    expected: `player ${player} receives 0.001 0G`,
+    observed: `player balance ${ethers.formatEther(before)} -> ${ethers.formatEther(after)} 0G`,
     pass: after - before === perWin,
   });
 
@@ -299,8 +299,8 @@ async function main() {
     kind: "tx",
     txHash: defundTx.hash,
     block: defundRcpt?.blockNumber,
-    expected: `pot balance 0 after reclaiming ${ethers.formatEther(leftover)} OG`,
-    observed: `pot balance ${ethers.formatEther(await rawBalance(potAddress))} OG`,
+    expected: `pot balance 0 after reclaiming ${ethers.formatEther(leftover)} 0G`,
+    observed: `pot balance ${ethers.formatEther(await rawBalance(potAddress))} 0G`,
     pass: (await rawBalance(potAddress)) === 0n,
   });
 

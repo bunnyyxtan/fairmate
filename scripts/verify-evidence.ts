@@ -322,7 +322,7 @@ async function verifyGameEvidence(file: string): Promise<void> {
       must(wa.args[0] === ev.gameId, "WinAwarded.gameId matches");
       must((wa.args[1] as string).toLowerCase() === (ev.playerAddress ?? "").toLowerCase(), "WinAwarded.winner is the journal-recorded player");
       if (ev.awardTx.amountOg) {
-        must(ethers.formatEther(wa.args[2] as bigint) === ev.awardTx.amountOg, `WinAwarded.amount is ${ev.awardTx.amountOg} OG`);
+        must(ethers.formatEther(wa.args[2] as bigint) === ev.awardTx.amountOg, `WinAwarded.amount is ${ev.awardTx.amountOg} 0G`);
       }
     }
   }
@@ -421,9 +421,9 @@ async function verifyRefundDrill(file: string): Promise<void> {
       stakeTx.from.toLowerCase() === d.player.toLowerCase() &&
       (stakeTx.to ?? "").toLowerCase() === d.potAddress.toLowerCase() &&
       stakeWei > 0n,
-    `stake tx mined: player sent ${ethers.formatEther(stakeWei)} OG to the pot`,
+    `stake tx mined: player sent ${ethers.formatEther(stakeWei)} 0G to the pot`,
   );
-  must(ge.stake?.amountOg === ethers.formatEther(stakeWei), `recorded stake amount recomputes (${ge.stake?.amountOg} OG)`);
+  must(ge.stake?.amountOg === ethers.formatEther(stakeWei), `recorded stake amount recomputes (${ge.stake?.amountOg} 0G)`);
   {
     const { ok, events } = await txEvents(d.stakeTx, potIface, d.potAddress);
     const funded = events.find((e) => e.name === "Funded");
@@ -473,7 +473,7 @@ async function verifyRefundDrill(file: string): Promise<void> {
     must(ok && !!def, "refund tx succeeded on the pot");
     if (def) {
       must((def.args[0] as string).toLowerCase() === d.player.toLowerCase(), "Defunded.to is the player wallet");
-      must((def.args[1] as bigint) === stakeWei, `Defunded.amount equals the stake to the wei (${ethers.formatEther(stakeWei)} OG)`);
+      must((def.args[1] as bigint) === stakeWei, `Defunded.amount equals the stake to the wei (${ethers.formatEther(stakeWei)} 0G)`);
       must(ge.refundTx?.amountOg === ethers.formatEther(def.args[1] as bigint), "recorded refund amount recomputes");
     }
   }
@@ -508,7 +508,7 @@ async function verifyDeployment(file: string): Promise<void> {
   must((await pot.owner()).toLowerCase() === d.deployer.toLowerCase(), "pot.owner() is the recorded deployer");
   must((await journal.referee()).toLowerCase() === d.deployer.toLowerCase(), "journal.referee() is the recorded deployer");
   const perWin = (await pot.perWinBounty()) as bigint;
-  console.log(`  INFO current pot config: perWinBounty ${ethers.formatEther(perWin)} OG, balance ${ethers.formatEther(BigInt(await provider.send("eth_getBalance", [d.potAddress, "latest"])))} OG`);
+  console.log(`  INFO current pot config: perWinBounty ${ethers.formatEther(perWin)} 0G, balance ${ethers.formatEther(BigInt(await provider.send("eth_getBalance", [d.potAddress, "latest"])))} 0G`);
 }
 
 async function main() {

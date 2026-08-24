@@ -42,7 +42,7 @@ const MODEL_MOVE_ATTEMPTS = 2;
 const MODEL_TEMPERATURE = 0.2;
 const IDLE_ABORT_MS = Number(process.env.FAIRMATE_IDLE_ABORT_MS ?? 10 * 60 * 1000);
 const GAME_CLOCK_MS = Number(process.env.FAIRMATE_CLOCK_MS ?? 5 * 60 * 1000);
-/** OG a player stakes into the ChallengePot to start a prize game. */
+/** 0G a player stakes into the ChallengePot to start a prize game. */
 export const ENTRY_FEE_OG = process.env.FAIRMATE_ENTRY_FEE_OG ?? "0.1";
 const ENTRY_FEE_WEI = ethers.parseEther(ENTRY_FEE_OG);
 const INFERENCE_LEASE_MS = 5 * 60 * 1000;
@@ -169,7 +169,7 @@ export async function createGame(
     if (!stakeTxHash) {
       throw new RefereeError(
         402,
-        `prize games require a ${ENTRY_FEE_OG} OG entry stake sent to the ChallengePot, include its transaction hash`,
+        `prize games require a ${ENTRY_FEE_OG} 0G entry stake sent to the ChallengePot, include its transaction hash`,
       );
     }
     if (!ethers.isHexString(stakeTxHash, 32)) {

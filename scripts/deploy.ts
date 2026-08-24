@@ -65,17 +65,17 @@ async function main() {
     ethers.parseEther(capOg),
   );
   const cfgRcpt = await cfgTx.wait();
-  console.log(`configureBounty(${bountyOg} OG per win, ${capOg} OG daily cap): ${cfgTx.hash}`);
+  console.log(`configureBounty(${bountyOg} 0G per win, ${capOg} 0G daily cap): ${cfgTx.hash}`);
 
   const fundTx = await wallet.sendTransaction({
     to: potAddress,
     value: ethers.parseEther(fundOg),
   });
   const fundRcpt = await fundTx.wait();
-  console.log(`funded pot with ${fundOg} OG: ${fundTx.hash}`);
+  console.log(`funded pot with ${fundOg} 0G: ${fundTx.hash}`);
 
   const potBalance = BigInt(await provider.send("eth_getBalance", [potAddress, "latest"]));
-  console.log(`pot balance: ${ethers.formatEther(potBalance)} OG`);
+  console.log(`pot balance: ${ethers.formatEther(potBalance)} 0G`);
 
   const out = {
     kind: "fairmate-deployment",

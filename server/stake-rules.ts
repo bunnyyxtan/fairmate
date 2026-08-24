@@ -72,7 +72,7 @@ export function checkStakeFacts(
     return {
       ok: false,
       retryable: false,
-      reason: `stake must be exactly ${formatEther(requiredWei)} OG, this transaction sent ${formatEther(facts.valueWei)} OG, send a fresh transfer for the exact amount`,
+      reason: `stake must be exactly ${formatEther(requiredWei)} 0G, this transaction sent ${formatEther(facts.valueWei)} 0G, send a fresh transfer for the exact amount`,
     };
   }
   return { ok: true, amountOg: formatEther(facts.valueWei), blockNumber: facts.blockNumber };

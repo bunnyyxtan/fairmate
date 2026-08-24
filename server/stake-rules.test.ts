@@ -27,7 +27,7 @@ test("a mined, exact stake from the payout address is accepted", () => {
   assert.equal(check.blockNumber, 42);
 });
 
-test("overpaying is rejected so the fixed 0.2 OG award can never underpay a winner", () => {
+test("overpaying is rejected so the fixed 0.2 0G award can never underpay a winner", () => {
   const check = checkStakeFacts(facts({ valueWei: parseEther("0.25") }), PLAYER, MIN, POT, "t");
   assert.ok(!check.ok && !check.retryable);
   assert.match(check.reason, /exactly 0\.1/);

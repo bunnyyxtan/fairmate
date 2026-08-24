@@ -1,7 +1,7 @@
 /**
  * Stake refund drill — LIVE against the production FairMate site.
  *
- * Proves, with real OG on 0G Mainnet, that a staked game which ends without
+ * Proves, with real 0G on 0G Mainnet, that a staked game which ends without
  * a winner returns the player's stake automatically:
  *   1. send exactly the entry fee from the player wallet to the ChallengePot
  *   2. admit a prize game on the live site with that stake transaction
@@ -19,7 +19,7 @@
  * If the drill client dies after the stake was sent (the server refunds on
  * its own either way — that is the whole point), resume verification with:
  *   pnpm exec tsx scripts/refund-drill.ts --network=mainnet --resume \
- *     --wallet-before=<OG> --pot-before=<OG> [--session=/tmp/fairmate-refund-session.json]
+ *     --wallet-before=<0G> --pot-before=<0G> [--session=/tmp/fairmate-refund-session.json]
  * The before-balances come from the interrupted run's log; everything else is
  * reconstructed from the chain and the live API.
  *
@@ -200,7 +200,7 @@ async function main() {
     action: "live site preflight",
     kind: "api",
     expected: "attestation ready, mainnet pot config",
-    observed: `entry fee ${pot.entryFeeOg} OG, pot ${potAddress}, referee ${pot.refereeAddress}`,
+    observed: `entry fee ${pot.entryFeeOg} 0G, pot ${potAddress}, referee ${pot.refereeAddress}`,
     pass: ethers.getAddress(pot.refereeAddress) === wallet.address,
   });
 
@@ -221,7 +221,7 @@ async function main() {
       action: "balances before stake",
       kind: "observation",
       expected: "recorded for exact reconciliation",
-      observed: `player ${ethers.formatEther(walletBefore)} OG, pot ${ethers.formatEther(potBefore)} OG`,
+      observed: `player ${ethers.formatEther(walletBefore)} 0G, pot ${ethers.formatEther(potBefore)} 0G`,
       pass: walletBefore > entryFeeWei,
     });
 
@@ -232,13 +232,13 @@ async function main() {
     stakeTxHash = stakeTx.hash;
     const funded = parseFunded(stakeRcpt.logs, potAddress);
     record({
-      action: `stake ${pot.entryFeeOg} OG into the ChallengePot`,
+      action: `stake ${pot.entryFeeOg} 0G into the ChallengePot`,
       kind: "tx",
       txHash: stakeTxHash,
       block: stakeRcpt.blockNumber,
-      expected: `Funded(${wallet.address}, ${pot.entryFeeOg} OG)`,
+      expected: `Funded(${wallet.address}, ${pot.entryFeeOg} 0G)`,
       observed: funded
-        ? `Funded(${funded.args[0]}, ${ethers.formatEther(funded.args[1] as bigint)} OG)`
+        ? `Funded(${funded.args[0]}, ${ethers.formatEther(funded.args[1] as bigint)} 0G)`
         : "no Funded event in stake receipt",
       pass:
         Boolean(funded) &&
@@ -262,7 +262,7 @@ async function main() {
       action: "prize game admitted on the live site with the stake tx",
       kind: "api",
       expected: "201 with stake recorded",
-      observed: `game ${gameId.slice(0, 12)}… stake ${game.stake?.amountOg} OG from ${game.stake?.from}`,
+      observed: `game ${gameId.slice(0, 12)}… stake ${game.stake?.amountOg} 0G from ${game.stake?.from}`,
       pass:
         game.stake?.amountOg === pot.entryFeeOg &&
         ethers.getAddress(String(game.stake?.from)) === wallet.address,
@@ -281,14 +281,14 @@ async function main() {
 
     const wb = findFlag(process.argv, "wallet-before");
     const pb = findFlag(process.argv, "pot-before");
-    if (!wb || !pb) throw new Error("--resume requires --wallet-before=<OG> and --pot-before=<OG> from the interrupted run's log");
+    if (!wb || !pb) throw new Error("--resume requires --wallet-before=<0G> and --pot-before=<0G> from the interrupted run's log");
     walletBefore = ethers.parseEther(wb);
     potBefore = ethers.parseEther(pb);
     record({
       action: "balances before stake (carried from the interrupted run's log)",
       kind: "observation",
       expected: "exact values printed by the interrupted run before it staked",
-      observed: `player ${ethers.formatEther(walletBefore)} OG, pot ${ethers.formatEther(potBefore)} OG`,
+      observed: `player ${ethers.formatEther(walletBefore)} 0G, pot ${ethers.formatEther(potBefore)} 0G`,
       pass: walletBefore > entryFeeWei,
     });
 
@@ -302,13 +302,13 @@ async function main() {
     if (!stakeRcpt) throw new Error(`stake receipt not found: ${stakeTxHash}`);
     const funded = parseFunded(stakeRcpt.logs, potAddress);
     record({
-      action: `stake ${pot.entryFeeOg} OG into the ChallengePot (re-verified from chain)`,
+      action: `stake ${pot.entryFeeOg} 0G into the ChallengePot (re-verified from chain)`,
       kind: "tx",
       txHash: stakeTxHash,
       block: stakeRcpt.blockNumber,
-      expected: `Funded(${wallet.address}, ${pot.entryFeeOg} OG), receipt status 1`,
+      expected: `Funded(${wallet.address}, ${pot.entryFeeOg} 0G), receipt status 1`,
       observed: funded
-        ? `Funded(${funded.args[0]}, ${ethers.formatEther(funded.args[1] as bigint)} OG), status ${stakeRcpt.status}`
+        ? `Funded(${funded.args[0]}, ${ethers.formatEther(funded.args[1] as bigint)} 0G), status ${stakeRcpt.status}`
         : `no Funded event, status ${stakeRcpt.status}`,
       pass:
         stakeRcpt.status === 1 &&
@@ -320,7 +320,7 @@ async function main() {
       action: "prize game admitted on the live site with the stake tx",
       kind: "api",
       expected: "live game records the exact stake from the player wallet",
-      observed: `game ${gameId.slice(0, 12)}… stake ${game.stake.amountOg} OG from ${game.stake.from}`,
+      observed: `game ${gameId.slice(0, 12)}… stake ${game.stake.amountOg} 0G from ${game.stake.from}`,
       pass:
         game.stake.amountOg === pot.entryFeeOg &&
         ethers.getAddress(String(game.stake.from)) === wallet.address,
@@ -422,9 +422,9 @@ async function main() {
     kind: "tx",
     txHash: game.refundTx.txHash,
     block: refundRcpt.blockNumber,
-    expected: `Defunded(${wallet.address}, ${pot.entryFeeOg} OG), receipt status 1`,
+    expected: `Defunded(${wallet.address}, ${pot.entryFeeOg} 0G), receipt status 1`,
     observed: defunded
-      ? `Defunded(${defunded.args[0]}, ${ethers.formatEther(defunded.args[1] as bigint)} OG), status ${refundRcpt.status}`
+      ? `Defunded(${defunded.args[0]}, ${ethers.formatEther(defunded.args[1] as bigint)} 0G), status ${refundRcpt.status}`
       : `no Defunded event, status ${refundRcpt.status}`,
     pass:
       refundRcpt.status === 1 &&
@@ -453,8 +453,8 @@ async function main() {
   record({
     action: "exact balance reconciliation (stake out, refund in, only gas lost)",
     kind: "observation",
-    expected: `player ${ethers.formatEther(expectedWalletAfter)} OG, pot ${ethers.formatEther(potBefore)} OG`,
-    observed: `player ${ethers.formatEther(walletAfter)} OG, pot ${ethers.formatEther(potAfter)} OG`,
+    expected: `player ${ethers.formatEther(expectedWalletAfter)} 0G, pot ${ethers.formatEther(potBefore)} 0G`,
+    observed: `player ${ethers.formatEther(walletAfter)} 0G, pot ${ethers.formatEther(potAfter)} 0G`,
     pass: walletAfter === expectedWalletAfter && potAfter === potBefore,
   });
 

@@ -11,8 +11,8 @@ from raw material on every run.
 | Asset | Where it lives | Why an attacker wants it |
 |---|---|---|
 | ChallengePot balance | `ChallengePot` contract, Aristotle Mainnet | direct theft target |
-| Player entry stakes | 0.1 OG transfers into the pot | steal, replay or strand them |
-| Win bounties | `award()` payouts, 0.2 OG per journal win | trigger without winning |
+| Player entry stakes | 0.1 0G transfers into the pot | steal, replay or strand them |
+| Win bounties | `award()` payouts, 0.2 0G per journal win | trigger without winning |
 | Game results | `MoveJournal` + referee Postgres | forge a win, erase a loss |
 | Inference receipts | Router TeeTLS receipts in evidence bundles | fake the model, fabricate moves |
 | Referee wallet key | server secret | sign anything (custody boundary) |
@@ -21,12 +21,12 @@ from raw material on every run.
 
 | Attack | Defense | Proof |
 |---|---|---|
-| Stake overpay/underpay to game a fixed 0.2 OG award | exact-amount check: `valueWei === requiredWei`, not a minimum | `stake-rules.test.ts`, admission 402/400 paths |
+| Stake overpay/underpay to game a fixed 0.2 0G award | exact-amount check: `valueWei === requiredWei`, not a minimum | `stake-rules.test.ts`, admission 402/400 paths |
 | Stake sent from a wallet other than the payout address | `tx.from` must equal the payout address, so the refundee and payee are the staker | `stake-rules.ts`, negative admission tests |
 | Stake hash replayed for a second game | burn table insert is atomic with game insert in one transaction, second use hits the unique key and admission fails 409 | `fairmate-store.test.ts` replay tests, live UI refusal |
 | Unconfirmed or reverted stake tx pasted at admission | receipt must exist with `status === 1` before a game starts, retryable 409 while unmined | `verifyStakeDeposit`, admission negatives |
 | Award triggered without a journal win | `award(gameId)` pays only a journal-recorded `PlayerWin`, only once, only to the journal-recorded player | live mainnet drill: double-award, model-win, stranger-write and post-end-commit all revert (`evidence/pot-drill.mainnet.json`) |
-| Pot drained via many wins | on-chain rolling 24h award cap (0.6 OG) plus per-IP, global-daily and concurrency admission caps | `BountyConfigured` event, config tx in README |
+| Pot drained via many wins | on-chain rolling 24h award cap (0.6 0G) plus per-IP, global-daily and concurrency admission caps | `BountyConfigured` event, config tx in README |
 | Refund never arrives after a draw/abort | refunds ride the durable outbox, retried up to 3 times with backoff, terminal failures stay in the pot and are operator-recoverable, never burned | `durable-outbox.test.ts` retry/exhaustion tests |
 | Walk away mid-game, then demand the stake back | disclosed rule: after the first move the 5+0 clock is binding, a flag fall is a loss (refunding abandonment would let losing players yank stakes) | fairness dialog copy, `referee-state.test.ts` |
 | Stake lost without playing at all | zero-move carve-out (lichess rule): a flag fall or resign with no moves played aborts the game and refunds the stake | `flagFallOutcome`, `referee-state.test.ts` |

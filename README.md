@@ -1,12 +1,12 @@
 # FairMate
 
-**Beat a TEE-verified chess rival. Win real OG from a builder-funded pot.**
+**Beat a TEE-verified chess rival. Win real 0G from a builder-funded pot.**
 
 FairMate is human-versus-AI 5+0 chess for the 0G Bridge Wave 3 hackathon. You play White against **Qwen 3.7 Max** through 0G Mainnet Router. Every Black move is legal-gated by `chess.js`, bound to exact Router request/response evidence, and committed to a public journal on Aristotle Mainnet. A journal-recorded human win unlocks a permissionless contract payout.
 
-Entry to a prize game is a `0.1 OG` stake into the ChallengePot. A journal-recorded win pays `0.2 OG` back, your stake plus a `0.1 OG` bounty. A draw or aborted game refunds the stake automatically. A loss leaves it in the pot. Practice games are free.
+Entry to a prize game is a `0.1 0G` stake into the ChallengePot. A journal-recorded win pays `0.2 0G` back, your stake plus a `0.1 0G` bounty. A draw or aborted game refunds the stake automatically. A loss leaves it in the pot. Practice games are free.
 
-<img src="screenshots/lobby.jpg" width="100%" alt="FairMate prize lobby: live 3.1 OG pot, 0.1 OG entry stake, 0.2 OG win payout, qwen3.7-max defending the pot">
+<img src="screenshots/lobby.jpg" width="100%" alt="FairMate prize lobby: live 3.1 0G pot, 0.1 0G entry stake, 0.2 0G win payout, qwen3.7-max defending the pot">
 
 ## The claim, decomposed exactly
 
@@ -64,8 +64,8 @@ Production also fails closed unless Router reports the exact pinned model/provid
 | Model | `qwen3.7-max` |
 | Provider identity | `0xF203A388e9E70F09ece38046a6D40a89cf896309` |
 | Game | Standard chess, White vs Black, 5+0 blitz |
-| Entry | exactly `0.1 OG` staked to the ChallengePot before a prize game (verified + replay-locked at admission) |
-| Prize | `0.2 OG` per player win: the `0.1 OG` stake back plus a `0.1 OG` bounty |
+| Entry | exactly `0.1 0G` staked to the ChallengePot before a prize game (verified + replay-locked at admission) |
+| Prize | `0.2 0G` per player win: the `0.1 0G` stake back plus a `0.1 0G` bounty |
 | Refund | draws and aborted games return the stake via `defund`, visible as `Defunded` events |
 | Verification | **604/604 checks passed** against the mainnet evidence set |
 
@@ -77,10 +77,10 @@ Production also fails closed unless Router reports the exact pinned model/provid
 | `ChallengePot` | [`0x9BD5f06Ce7aB22dfF739Ed2b2886BfB49acc69Ef`](https://chainscan.0g.ai/address/0x9BD5f06Ce7aB22dfF739Ed2b2886BfB49acc69Ef) |
 | Journal deployment | [`0x1d37d6…e3b9b`](https://chainscan.0g.ai/tx/0x1d37d6b2147906618a858caf968fb34ab7a0979636945273d992cc7ed42e3b9b) |
 | Pot deployment | [`0x89cc3b…258b8`](https://chainscan.0g.ai/tx/0x89cc3b5a597f87aa9c23a3039fafe2d4841b29196c4c8745a2fe409cd62258b8) |
-| Configure `0.1 OG` bounty / `0.3 OG` daily cap | [`0x6aa302…5c56c`](https://chainscan.0g.ai/tx/0x6aa3022503979c9804ed2931a0eeddd1ac9d44f9b31109f30a68c048afd5c56c) |
-| Configure `0.2 OG` win payout / `0.6 OG` daily cap (entry-stake era) | [`0xb00326…3d0226`](https://chainscan.0g.ai/tx/0xb003262c859843271b44581dbbe6b140b4045778f7dbaf1353604a244d3d0226) |
-| Fund production pot with `3 OG` | [`0x421080…c558`](https://chainscan.0g.ai/tx/0x42108033ebc8f6a0a38176c890a126528952f6253d38eaed88ca0fed42ffc558) |
-| Deposit `23 OG` to 0G Router Payment Vault | [`0xc9027a…7e75a`](https://chainscan.0g.ai/tx/0xc9027ae6332d6ea5a9a1f4108f101076a691c8942bab15d9d3d039936457e75a) |
+| Configure `0.1 0G` bounty / `0.3 0G` daily cap | [`0x6aa302…5c56c`](https://chainscan.0g.ai/tx/0x6aa3022503979c9804ed2931a0eeddd1ac9d44f9b31109f30a68c048afd5c56c) |
+| Configure `0.2 0G` win payout / `0.6 0G` daily cap (entry-stake era) | [`0xb00326…3d0226`](https://chainscan.0g.ai/tx/0xb003262c859843271b44581dbbe6b140b4045778f7dbaf1353604a244d3d0226) |
+| Fund production pot with `3 0G` | [`0x421080…c558`](https://chainscan.0g.ai/tx/0x42108033ebc8f6a0a38176c890a126528952f6253d38eaed88ca0fed42ffc558) |
+| Deposit `23 0G` to 0G Router Payment Vault | [`0xc9027a…7e75a`](https://chainscan.0g.ai/tx/0xc9027ae6332d6ea5a9a1f4108f101076a691c8942bab15d9d3d039936457e75a) |
 
 ### Real paid sample
 
@@ -90,26 +90,26 @@ Production also fails closed unless Router reports the exact pinned model/provid
 | Player | [`0x92865D10efbBb4e72A6ed16Ec5FD02Cf9A296eB6`](https://chainscan.0g.ai/address/0x92865D10efbBb4e72A6ed16Ec5FD02Cf9A296eB6) |
 | Start | [`0xb0fb7c…58cff`](https://chainscan.0g.ai/tx/0xb0fb7c2040469b31e8eb02b012f15662f11fcfd96df903c0e102dba58db58cff) |
 | End | [`0x421d7e…7f07f`](https://chainscan.0g.ai/tx/0x421d7e2a19000d58d220e41e8df8e2a3d716cf0429ab46c114e6195fef27f07f) — player win, Qwen's 5+0 clock expired |
-| Award | [`0xac8277…fff8`](https://chainscan.0g.ai/tx/0xac8277b8f730ea565884aaac3829c2b96049f5af831c2e6de64f0a5f51b8fff8) — **0.1 OG** |
-| Production pot after payout | **2.9 OG** |
+| Award | [`0xac8277…fff8`](https://chainscan.0g.ai/tx/0xac8277b8f730ea565884aaac3829c2b96049f5af831c2e6de64f0a5f51b8fff8) — **0.1 0G** |
+| Production pot after payout | **2.9 0G** |
 
 The full game contains 31 plies with exact Router evidence for every Qwen move. `pnpm run verify -- --network=mainnet` completed with **604/604 checks passed** (including the live refund drill).
 
-<img src="screenshots/payout.jpg" width="100%" alt="FairMate victory screen: confirmed 0.2 OG award with journal-recorded result and award transactions">
+<img src="screenshots/payout.jpg" width="100%" alt="FairMate victory screen: confirmed 0.2 0G award with journal-recorded result and award transactions">
 
 ### Evidence-derived budget reconciliation
 
 | Evidence or observed balance | Amount |
 |---|---:|
-| Six-ply Router proof signed-response charges | `0.04276914` Neuron/OG-equivalent |
-| Full-game signed-response charges | `0.19882763` Neuron/OG-equivalent |
-| Total signed Router response charges | **`0.24159677` Neuron/OG-equivalent** |
-| Router Payment Vault balance observed 2026-08-23 | `22.5 OG` |
-| Operator wallet reserve observed 2026-08-23 | `7.636350473056340054 OG` |
-| Production pot observed after payout 2026-08-23 | `2.9 OG` |
-| Player recipient observed 2026-08-23 | `0.1 OG` |
+| Six-ply Router proof signed-response charges | `0.04276914` Neuron/0G-equivalent |
+| Full-game signed-response charges | `0.19882763` Neuron/0G-equivalent |
+| Total signed Router response charges | **`0.24159677` Neuron/0G-equivalent** |
+| Router Payment Vault balance observed 2026-08-23 | `22.5 0G` |
+| Operator wallet reserve observed 2026-08-23 | `7.636350473056340054 0G` |
+| Production pot observed after payout 2026-08-23 | `2.9 0G` |
+| Player recipient observed 2026-08-23 | `0.1 0G` |
 
-Signed-response charges are derived from the Router evidence and represent the verified usage total. Funding and internal vault transfers are separate on-chain or ledger movements. In particular, the difference between the `23 OG` Router Payment Vault deposit transaction and the `22.5 OG` observed vault balance is **not** labeled as spend.
+Signed-response charges are derived from the Router evidence and represent the verified usage total. Funding and internal vault transfers are separate on-chain or ledger movements. In particular, the difference between the `23 0G` Router Payment Vault deposit transaction and the `22.5 0G` observed vault balance is **not** labeled as spend.
 
 ### Archived development deployment (0G Galileo, chain ID 16602)
 
@@ -164,10 +164,10 @@ The browser recomputes request/response hashes, validates trace consistency, con
 
 ## ChallengePot rules
 
-- Entry is a `0.1 OG` stake per prize game, sent as a plain transfer to the pot from the payout wallet. The referee verifies it on-chain at admission — exact amount, right sender, right destination, mined and successful — and burns the transaction hash so it can never admit a second game. `Funded` / `BountyConfigured` / `Defunded` events keep the economics public; stake refunds are `Defunded` events back to the player.
+- Entry is a `0.1 0G` stake per prize game, sent as a plain transfer to the pot from the payout wallet. The referee verifies it on-chain at admission — exact amount, right sender, right destination, mined and successful — and burns the transaction hash so it can never admit a second game. `Funded` / `BountyConfigured` / `Defunded` events keep the economics public; stake refunds are `Defunded` events back to the player.
 - Refunds are driven by the same durable outbox as every other anchor: a reverted refund retries up to 3 times with a one-minute backoff. A refund that still fails, or a transfer that never admitted a game (wrong amount, wrong sender), stays in the pot and is returned manually by the pot owner via `defund`.
 - Zero-move fairness (the lichess rule): a prize game that ends with no moves played — flag fall or resign alike — aborts and refunds the stake, because no paid inference was consumed. After the first move the 5+0 clock is binding for both sides: a player flag fall leaves the stake in the pot even if the tab is closed (disclosed up front and warned on leave), and a model flag fall pays the player the full win bounty.
-- `award(gameId)` — callable by **anyone**. Pays the per-win bounty (`0.2 OG`: stake back + bounty) to the player address recorded in the journal at game start, only for a journal-recorded `PlayerWin`, only once per game, within a rolling 24h cap.
+- `award(gameId)` — callable by **anyone**. Pays the per-win bounty (`0.2 0G`: stake back + bounty) to the player address recorded in the journal at game start, only for a journal-recorded `PlayerWin`, only once per game, within a rolling 24h cap.
 - Live drill (`pnpm run drill -- --network=mainnet`, results in `evidence/pot-drill.mainnet.json`): a real payout to a throwaway address, followed by live-revert proofs for double-award, model-win, no-player, cap-exceeded, ongoing-game, unknown-game, stranger-write, post-end-commit and receiptless-model-move.
 - Refund drill (`pnpm run drill:refund -- --network=mainnet`, results in `evidence/refund-drill.mainnet.json`): a real staked game on the production site, deliberately abandoned until the sweep aborts it; the durable outbox then returns the stake — verified live via the `Defunded` event, exact balance reconciliation and the game's downloadable evidence.
 
@@ -199,10 +199,10 @@ The browser recomputes request/response hashes, validates trace consistency, con
 - **2026-08-22:** working Galileo prototype; live journal, direct TeeML receipts, pot-binding drill and full evidence verifier
 - **2026-08-23:** production UI rebuilt as Prize Fight Lobby; complete legal board interactions and 5+0 clocks added
 - **2026-08-23:** architecture migrated to Aristotle Mainnet + Qwen 3.7 Max through 0G Router with explicit TeeTLS trust semantics, price pins, cost accounting and fail-closed tests
-- **2026-08-23:** Aristotle contracts funded and configured; Router Payment Vault funded; full 31-ply sample paid `0.1 OG`; **581/581** mainnet evidence checks passed
-- **2026-08-24:** Entry-stake era: prize games stake `0.1 OG`, wins pay `0.2 OG` (stake back + bounty), draws and aborts auto-refund via `defund` ([config tx](https://chainscan.0g.ai/tx/0xb003262c859843271b44581dbbe6b140b4045778f7dbaf1353604a244d3d0226))
+- **2026-08-23:** Aristotle contracts funded and configured; Router Payment Vault funded; full 31-ply sample paid `0.1 0G`; **581/581** mainnet evidence checks passed
+- **2026-08-24:** Entry-stake era: prize games stake `0.1 0G`, wins pay `0.2 0G` (stake back + bounty), draws and aborts auto-refund via `defund` ([config tx](https://chainscan.0g.ai/tx/0xb003262c859843271b44581dbbe6b140b4045778f7dbaf1353604a244d3d0226))
 - **2026-08-24:** Fairness hardening: zero-move games abort with a refund instead of settling as silent losses, resign-before-move refunds too, binding-clock rules disclosed in the lobby and warned on tab close, evidence download auto-unlocks after chain sync, full adversarial [threat model](docs/THREAT-MODEL.md) published
-- **2026-08-24:** Refund path proven live: a staked production game was abandoned, auto-aborted and refunded `0.1 OG` on Mainnet ([refund tx](https://chainscan.0g.ai/tx/0x39788429d01bf77434dc80f21ed3963872f0114ed14be76ffb9f3f3c4db85c80))
+- **2026-08-24:** Refund path proven live: a staked production game was abandoned, auto-aborted and refunded `0.1 0G` on Mainnet ([refund tx](https://chainscan.0g.ai/tx/0x39788429d01bf77434dc80f21ed3963872f0114ed14be76ffb9f3f3c4db85c80))
 ## Scripts
 
 | Command | Purpose |

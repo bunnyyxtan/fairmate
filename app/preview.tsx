@@ -145,7 +145,7 @@ function fixture(phase: string): { game: GameState; pendingAction: "move" | "res
       game.endReason = "qwen3.7-max ran out of time";
       game.clock = { ...game.clock, playerMs: 61_000, modelMs: 0, active: null, activeSince: null };
       game.endTx = { status: "confirmed", txHash: FAKE_HASH, blockNumber: 12_345_999 };
-      game.awardTx = { status: "confirmed", txHash: FAKE_HASH, blockNumber: 12_346_000, amountOg: "0.1" };
+      game.awardTx = { status: "confirmed", txHash: FAKE_HASH, blockNumber: 12_346_000, amountOg: "0.2" };
       return { game, pendingAction: null };
     }
     case "loss": {

@@ -6,6 +6,8 @@ FairMate is human-versus-AI 5+0 chess for the 0G Bridge Wave 3 hackathon. You pl
 
 Entry to a prize game is a `0.1 OG` stake into the ChallengePot. A journal-recorded win pays `0.2 OG` back, your stake plus a `0.1 OG` bounty. A draw or aborted game refunds the stake automatically. A loss leaves it in the pot. Practice games are free.
 
+<img src="screenshots/lobby.jpg" width="100%" alt="FairMate prize lobby: live 3.1 OG pot, 0.1 OG entry stake, 0.2 OG win payout, qwen3.7-max defending the pot">
+
 ## The claim, decomposed exactly
 
 | Claim | Mechanism | Who checks it |
@@ -17,6 +19,8 @@ Entry to a prize game is a `0.1 OG` stake into the ChallengePot. A journal-recor
 | *What remains trusted* | The referee server controls the clock, determines the result with `chess.js`, and submits transactions | The full SAN/FEN line and timestamps are downloadable; a conflicting record is auditable |
 
 > **Verification boundary:** 0G Router does not expose the raw provider signature for its TeeTLS path. FairMate therefore never claims browser-side signature recovery in Router mode. The browser verifies every exposed byte/hash/trace/commitment property and displays 0G Router as the explicit TeeTLS trust boundary.
+
+<img src="screenshots/verified-move.jpg" width="100%" alt="FairMate match screen: qwen3.7-max thinking with TeeTLS-verified inference burning its clock and journal anchoring in the background">
 
 ## Verify before you trust
 
@@ -90,6 +94,8 @@ Production also fails closed unless Router reports the exact pinned model/provid
 | Production pot after payout | **2.9 OG** |
 
 The full game contains 31 plies with exact Router evidence for every Qwen move. `pnpm run verify -- --network=mainnet` completed with **604/604 checks passed** (including the live refund drill).
+
+<img src="screenshots/payout.jpg" width="100%" alt="FairMate victory screen: confirmed 0.2 OG award with journal-recorded result and award transactions">
 
 ### Evidence-derived budget reconciliation
 
@@ -197,9 +203,8 @@ The browser recomputes request/response hashes, validates trace consistency, con
 - **2026-08-23:** architecture migrated to Aristotle Mainnet + Qwen 3.7 Max through 0G Router with explicit TeeTLS trust semantics, price pins, cost accounting and fail-closed tests
 - **2026-08-23:** Aristotle contracts funded and configured; Router Payment Vault funded; full 31-ply sample paid `0.1 OG`; **581/581** mainnet evidence checks passed
 - **2026-08-24:** Entry-stake era: prize games stake `0.1 OG`, wins pay `0.2 OG` (stake back + bounty), draws and aborts auto-refund via `defund` ([config tx](https://chainscan.0g.ai/tx/0xb003262c859843271b44581dbbe6b140b4045778f7dbaf1353604a244d3d0226))
-- **2026-08-24:** Refund path proven live: a staked production game was abandoned, auto-aborted and refunded `0.1 OG` on Mainnet ([refund tx](https://chainscan.0g.ai/tx/0x39788429d01bf77434dc80f21ed3963872f0114ed14be76ffb9f3f3c4db85c80))
 - **2026-08-24:** Fairness hardening: zero-move games abort with a refund instead of settling as silent losses, resign-before-move refunds too, binding-clock rules disclosed in the lobby and warned on tab close, evidence download auto-unlocks after chain sync, full adversarial [threat model](docs/THREAT-MODEL.md) published
-
+- **2026-08-24:** Refund path proven live: a staked production game was abandoned, auto-aborted and refunded `0.1 OG` on Mainnet ([refund tx](https://chainscan.0g.ai/tx/0x39788429d01bf77434dc80f21ed3963872f0114ed14be76ffb9f3f3c4db85c80))
 ## Scripts
 
 | Command | Purpose |

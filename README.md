@@ -181,9 +181,7 @@ The browser recomputes request/response hashes, validates trace consistency, con
 | `evidence/pot-drill.mainnet.json` | Pot/journal positive and negative binding paths | real txs + recorded-block `eth_call` reverts |
 | `evidence/refund-drill.mainnet.json` | Live draw/abort stake refund on the production site | real staked game + `Defunded` event + exact balance reconciliation |
 | `evidence/selfplay.router.mainnet.json` | Dense Router TeeTLS evidence without chain writes | local byte/hash/trace/commitment checks |
-| `docs/architecture.svg` | Standalone production architecture and trust boundaries | public system flow at 1600×900 |
 | `docs/THREAT-MODEL.md` | attack → defense → proof mapping for every money path | adversarial review with explicit accepted risks |
-| `docs/submission.md`, `docs/x-launch.md` | Submission links, demo checklist and launch copy | exact explorer URLs; placeholders only for unpublished URLs |
 | `evidence/deployment.json`, `sample-game.json`, `pot-drill.json` | Archived Galileo development proof | explicitly excluded from mainnet submission claims |
 
 ## Trust model

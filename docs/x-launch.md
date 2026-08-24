@@ -14,7 +14,7 @@ Stake 0.1 OG, beat a TeeTLS-verified Qwen rival, win 0.2 OG from the onchain pot
 
 App → https://fairmate-cyan.vercel.app  
 Code → https://github.com/bunnyyxtan/fairmate  
-Demo → [DEMO_URL]  
+Demo → https://youtu.be/4X0w6P5TfrA  
 Proof → https://chainscan.0g.ai/tx/0xac8277b8f730ea565884aaac3829c2b96049f5af831c2e6de64f0a5f51b8fff8
 
 # Optional short thread
@@ -49,4 +49,4 @@ Public evidence covers deployment, bridge funding, Router receipts, full game re
 
 App → https://fairmate-cyan.vercel.app  
 Repo → https://github.com/bunnyyxtan/fairmate  
-Demo → [DEMO_URL]
+Demo → https://youtu.be/4X0w6P5TfrA

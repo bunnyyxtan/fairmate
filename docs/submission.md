@@ -60,4 +60,4 @@ The signed-response charges are the evidence-derived Router usage total. Vault f
 
 - App: <https://fairmate-cyan.vercel.app>
 - Repository: <https://github.com/bunnyyxtan/fairmate>
-- Demo video: `[DEMO_URL]`
+- Demo video: `https://youtu.be/4X0w6P5TfrA`

@@ -6,7 +6,7 @@ FairMate is human-versus-AI 5+0 chess for the 0G Bridge Wave 3 hackathon. You pl
 
 Entry to a prize game is a `0.1 0G` stake into the ChallengePot. A journal-recorded win pays `0.2 0G` back, your stake plus a `0.1 0G` bounty. A draw or aborted game refunds the stake automatically. A loss leaves it in the pot. Practice games are free.
 
-<img src="screenshots/lobby.jpg" width="100%" alt="FairMate prize lobby: live 3.1 0G pot, 0.1 0G entry stake, 0.2 0G win payout, qwen3.7-max defending the pot">
+<img src="docs/screenshots/lobby.jpg" width="100%" alt="FairMate prize lobby: live 3.1 0G pot, 0.1 0G entry stake, 0.2 0G win payout, qwen3.7-max defending the pot">
 
 ## The claim, decomposed exactly
 
@@ -20,7 +20,7 @@ Entry to a prize game is a `0.1 0G` stake into the ChallengePot. A journal-recor
 
 > **Verification boundary:** 0G Router does not expose the raw provider signature for its TeeTLS path. FairMate therefore never claims browser-side signature recovery in Router mode. The browser verifies every exposed byte/hash/trace/commitment property and displays 0G Router as the explicit TeeTLS trust boundary.
 
-<img src="screenshots/verified-move.jpg" width="100%" alt="FairMate match screen: qwen3.7-max thinking with TeeTLS-verified inference burning its clock and journal anchoring in the background">
+<img src="docs/screenshots/verified-move.jpg" width="100%" alt="FairMate match screen: qwen3.7-max thinking with TeeTLS-verified inference burning its clock and journal anchoring in the background">
 
 ## Verify before you trust
 
@@ -96,7 +96,7 @@ Production also fails closed unless Router reports the exact pinned model/provid
 
 The full game contains 31 plies with exact Router evidence for every Qwen move. `pnpm run verify -- --network=mainnet` completed with **604/604 checks passed** (including the live refund drill).
 
-<img src="screenshots/payout.jpg" width="100%" alt="FairMate victory screen: confirmed 0.2 0G award with journal-recorded result and award transactions">
+<img src="docs/screenshots/payout.jpg" width="100%" alt="FairMate victory screen: confirmed 0.2 0G award with journal-recorded result and award transactions">
 
 ### Evidence-derived budget reconciliation
 

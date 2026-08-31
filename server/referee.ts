@@ -3,6 +3,7 @@ import { ethers } from "ethers";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { canonicalHash } from "../shared/canonical.js";
 import { computeReceiptHash } from "../shared/receipt.js";
+import { FAIRMATE_ROUTER_PROVIDER } from "../shared/router-policy.js";
 import type { GameState, PlyRecord, ReceiptBundle } from "../shared/protocol.js";
 import { CHESS_SYSTEM_PROMPT, buildMoveUserPrompt, parseMove } from "../src/chess-agent.js";
 import { completion, getComputeState } from "./compute-service.js";
@@ -400,6 +401,18 @@ async function resumeModel(gameId: string): Promise<void> {
     for (let attempt = 1; attempt <= MODEL_MOVE_ATTEMPTS; attempt++) {
       const beforeRow = await store.get(gameId);
       if (!beforeRow || beforeRow.state.status !== "model_thinking") return;
+      // Pin-rotation guard: a game carries the provider identity it was
+      // created under (GameStarted anchors that identity on-chain). If the
+      // active pin has rotated since, resuming would mint receipts under the
+      // new provider inside a game journaled to the old one — mixed-identity
+      // evidence. Fail closed instead: abort the game, stake refundable.
+      if (beforeRow.state.provider.toLowerCase() !== FAIRMATE_ROUTER_PROVIDER.toLowerCase()) {
+        await faultGame(
+          gameId,
+          `provider re-pinned since this game started (game bound to ${beforeRow.state.provider}, active pin ${FAIRMATE_ROUTER_PROVIDER})`,
+        );
+        return;
+      }
       const chess = chessFor(beforeRow.state);
       const legalSans = chess.moves();
       const prompt = buildMoveUserPrompt({

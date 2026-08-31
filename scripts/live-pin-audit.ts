@@ -39,7 +39,7 @@ const messages = [
 console.log(`[audit] active pin: ${FAIRMATE_ROUTER_PROVIDER}`);
 const selection = await discoverRouterSelection();
 console.log(
-  `[audit] discovery OK: provider=${selection.provider} model=${selection.model} listedLatency=${String(selection.metadata.latency)}ms healthy=${String(selection.metadata.is_healthy)}`,
+  `[audit] discovery OK: provider=${selection.provider} model=${selection.model} healthy=${String(selection.metadata.is_healthy)}`,
 );
 const started = Date.now();
 const res = await routerCompletion(selection, messages, 0.2);

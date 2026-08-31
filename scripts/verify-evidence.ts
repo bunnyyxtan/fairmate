@@ -29,7 +29,7 @@ import { canonicalHash } from "../shared/canonical.js";
 import { verifyReceiptBundle, type ReceiptBundleLike } from "../shared/receipt.js";
 import {
   FAIRMATE_ROUTER_MODEL,
-  FAIRMATE_ROUTER_PROVIDER,
+  isAuditedRouterProvider,
 } from "../shared/router-policy.js";
 import { parseMove } from "../src/chess-agent.js";
 
@@ -151,8 +151,8 @@ async function verifyGameEvidence(file: string): Promise<void> {
     must(ev.verificationScheme === "router-teetls", "mainnet evidence uses the Router TeeTLS scheme");
     must(ev.model === FAIRMATE_ROUTER_MODEL, `mainnet model is pinned to ${FAIRMATE_ROUTER_MODEL}`);
     must(
-      ev.provider.toLowerCase() === FAIRMATE_ROUTER_PROVIDER.toLowerCase(),
-      `mainnet provider is pinned to ${FAIRMATE_ROUTER_PROVIDER}`,
+      isAuditedRouterProvider(ev.provider),
+      `mainnet provider ${ev.provider} is in FairMate's audited provider set`,
     );
   }
 
@@ -178,8 +178,8 @@ async function verifyGameEvidence(file: string): Promise<void> {
       must(metadata.scheme === "router-teetls", `ply ${p.ply}: receipt uses Router TeeTLS`);
       must(metadata.model === FAIRMATE_ROUTER_MODEL, `ply ${p.ply}: receipt model matches the FairMate pin`);
       must(
-        metadata.provider?.toLowerCase() === FAIRMATE_ROUTER_PROVIDER.toLowerCase(),
-        `ply ${p.ply}: receipt provider matches the FairMate pin`,
+        typeof metadata.provider === "string" && isAuditedRouterProvider(metadata.provider),
+        `ply ${p.ply}: receipt provider is in FairMate's audited provider set`,
       );
     }
     const checks = verifyReceiptBundle(r);

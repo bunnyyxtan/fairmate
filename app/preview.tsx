@@ -39,8 +39,8 @@ const pot: PotInfo = {
   windowStart: Date.now() - 3_600_000,
   refereeAddress: "0x9fB13bD57b1b31d25E2d2b2B04cEea50e0B256C8",
   model: "qwen3.7-max",
-  provider: "0xF203A388e9E70F09ece38046a6D40a89cf896309",
-  effectiveSigner: "0xF203A388e9E70F09ece38046a6D40a89cf896309",
+  provider: "0x1B3AAef3ae5050EEE04ea38cD4B087472BD85EB0",
+  effectiveSigner: "0x1B3AAef3ae5050EEE04ea38cD4B087472BD85EB0",
   verificationScheme: "router-teetls",
   attestationReady: true,
 };

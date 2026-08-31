@@ -4,7 +4,7 @@ import {
   FAIRMATE_ROUTER_MAX_COMPLETION_PRICE_USD,
   FAIRMATE_ROUTER_MAX_PROMPT_PRICE_USD,
   FAIRMATE_ROUTER_MODEL,
-  FAIRMATE_ROUTER_PROVIDER,
+  isAuditedRouterProvider,
 } from "./router-policy.js";
 import type {
   DirectReceiptBundle,
@@ -243,15 +243,15 @@ function verifyRouterReceiptBundle(
   const constraintsOk =
     b.requestConstraints.providerAddress.toLowerCase() === b.provider.toLowerCase() &&
     b.model === FAIRMATE_ROUTER_MODEL &&
-    b.provider.toLowerCase() === FAIRMATE_ROUTER_PROVIDER.toLowerCase() &&
+    isAuditedRouterProvider(b.provider) &&
     b.requestConstraints.maxPromptPriceUsd === FAIRMATE_ROUTER_MAX_PROMPT_PRICE_USD &&
     b.requestConstraints.maxCompletionPriceUsd === FAIRMATE_ROUTER_MAX_COMPLETION_PRICE_USD;
   push(
     "routing constraints bound",
     constraintsOk,
     constraintsOk
-      ? `FairMate's fixed model, provider and ${FAIRMATE_ROUTER_MAX_PROMPT_PRICE_USD}/${FAIRMATE_ROUTER_MAX_COMPLETION_PRICE_USD} Router ceilings are bound`
-      : "model, provider, or price-ceiling metadata does not match FairMate's fixed Router policy",
+      ? `FairMate's fixed model, an audited provider and ${FAIRMATE_ROUTER_MAX_PROMPT_PRICE_USD}/${FAIRMATE_ROUTER_MAX_COMPLETION_PRICE_USD} Router ceilings are bound`
+      : "model, provider, or price-ceiling metadata does not match FairMate's audited Router policy",
   );
 
   let traceOk = false;

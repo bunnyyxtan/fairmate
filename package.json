@@ -22,6 +22,7 @@
     "selfplay": "tsx scripts/selfplay-attested.ts",
     "preverify": "pnpm run compile",
     "verify": "tsx scripts/verify-evidence.ts",
+    "audit:pin": "tsx scripts/live-pin-audit.ts",
     "balance": "tsx scripts/balance.ts",
     "services": "tsx scripts/list-services.ts",
     "db:migrate": "tsx scripts/migrate.ts",

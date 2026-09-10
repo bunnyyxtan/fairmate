@@ -114,8 +114,18 @@ export class FairmateStore {
   }
 
   /**
-   * A session advisory lock is intentional: it remains held while a raw
-   * transaction is populated and signed, preventing nonce races across hosts.
+   * The wallet lock stays held while a raw transaction is populated, signed
+   * and broadcast, preventing nonce races across hosts.
+   *
+   * It is transaction-scoped on purpose: the holder opens an explicit
+   * transaction on one dedicated connection, keeps it open for the whole
+   * drain and releases the lock by committing. A session-level advisory lock
+   * is unsafe behind a transaction-mode pooler (Neon pooler, PgBouncer,
+   * Supavisor): consecutive statements from one client can land on different
+   * server backends, so the unlock misses the backend that holds the lock, the
+   * lock leaks until that backend is recycled, and every later drain waits out
+   * its deadline. A transaction pins one backend for its lifetime, so acquire
+   * and release always meet.
    *
    * Waiting happens OFF-connection: a contender try-locks and, on failure,
    * releases its pool connection before sleeping. A blocking pg_advisory_lock
@@ -128,20 +138,32 @@ export class FairmateStore {
     for (;;) {
       const client = await pool.connect();
       let acquired = false;
+      let broken = false;
       try {
+        await client.query("begin");
         const result = await client.query(
-          "select pg_try_advisory_lock(hashtextextended($1, 0)) as locked",
+          "select pg_try_advisory_xact_lock(hashtextextended($1, 0)) as locked",
           [WALLET_LOCK_NAME],
         );
         acquired = Boolean((result.rows[0] as { locked: boolean }).locked);
-        if (acquired) return await work();
-      } finally {
         if (acquired) {
-          await client.query("select pg_advisory_unlock(hashtextextended($1, 0))", [
-            WALLET_LOCK_NAME,
-          ]);
+          const value = await work();
+          await client.query("commit");
+          return value;
         }
-        client.release();
+        await client.query("rollback");
+      } catch (error) {
+        // Rolling back releases the lock whatever failed inside the drain; if
+        // the connection itself is gone the lock is already released and the
+        // client is discarded instead of being returned to the pool.
+        try {
+          await client.query("rollback");
+        } catch {
+          broken = true;
+        }
+        throw error;
+      } finally {
+        client.release(broken ? new Error("wallet lock connection abandoned") : undefined);
       }
       if (Date.now() > deadline) {
         throw new Error("wallet lock is busy — another instance is draining the outbox");

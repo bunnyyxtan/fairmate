@@ -107,6 +107,41 @@ test("PostgreSQL per-game advisory lock permits one logical ply", async () => {
   assert.deepEqual((await first.get(id))?.state.sans, ["e4"]);
 });
 
+async function walletLockHolders(): Promise<{ pid: number; state: string }[]> {
+  const result = await pool.query(
+    `select l.pid, a.state from pg_locks l join pg_stat_activity a on a.pid = l.pid
+     where l.locktype = 'advisory' and l.granted
+       and l.classid = (hashtextextended($1, 0) >> 32)::int
+       and l.objid = (hashtextextended($1, 0) & x'ffffffff'::bigint)::oid`,
+    ["fairmate:referee-wallet:v1"],
+  );
+  return result.rows as { pid: number; state: string }[];
+}
+
+test("wallet lock is transaction-scoped and never outlives the drain", async () => {
+  const store = new FairmateStore();
+  let holdersDuring: { pid: number; state: string }[] = [];
+  await store.withWalletLock(async () => {
+    holdersDuring = await walletLockHolders();
+  });
+  assert.equal(holdersDuring.length, 1, "exactly one backend holds the wallet lock while draining");
+  // A transaction-mode pooler pins a backend only for the life of a
+  // transaction, so the holder must sit inside one: a session-level lock
+  // would show the holder as plain "idle" and leak behind a pooler.
+  assert.equal(holdersDuring[0].state, "idle in transaction");
+  assert.deepEqual(await walletLockHolders(), [], "lock released after a successful drain");
+
+  await assert.rejects(
+    store.withWalletLock(async () => {
+      throw new Error("chain unreachable");
+    }),
+    /chain unreachable/,
+  );
+  assert.deepEqual(await walletLockHolders(), [], "lock released after a failed drain");
+  const again = await store.withWalletLock(async () => "reacquired");
+  assert.equal(again, "reacquired");
+});
+
 test("inference lease is exclusive and supports expiry takeover", async () => {
   const first = new FairmateStore();
   const second = new FairmateStore();

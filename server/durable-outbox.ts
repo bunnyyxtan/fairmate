@@ -264,8 +264,12 @@ export class DurableOutbox {
 
   /** Globally drains prepared nonces first, then unsigned queue heads. */
   async drain(): Promise<void> {
-    await this.store.withWalletLock(async () => {
+    await this.store.withWalletLock(async (fence) => {
       for (;;) {
+        // Ownership is re-checked before every step that could assign a wallet
+        // nonce: a drain whose lock session died must stop here rather than
+        // sign alongside whichever instance acquired the lock after it.
+        fence.assertHeld();
         const pending = await this.store.listPending();
         let backfilled = false;
         for (const candidate of pending) {
@@ -310,6 +314,7 @@ export class DurableOutbox {
             }
           }
           if (!action.rawTx || !action.txHash) {
+            fence.assertHeld();
             const signed = await this.chain.prepare(callFor(action));
             action.rawTx = signed.rawTx;
             action.txHash = signed.txHash;

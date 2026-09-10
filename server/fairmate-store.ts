@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import type { PoolClient } from "pg";
 import { pool } from "../db/pool.js";
 import type { GameState, PlyRecord } from "../shared/protocol.js";
 
@@ -73,6 +74,21 @@ const SELECT = `game_id, state, capability_hash, admission_key, admission_day,
 const TABLE = `"fairmate"."fairmate_games"`;
 const WALLET_LOCK_NAME = "fairmate:referee-wallet:v1";
 const WALLET_LOCK_WAIT_MS = Number(process.env.FAIRMATE_WALLET_LOCK_WAIT_MS ?? 45_000);
+/**
+ * The lock connection runs no statements of its own while a drain waits on
+ * the chain, and managed Postgres kills idle-in-transaction sessions (Neon
+ * defaults to five minutes). A periodic no-op keeps the holder's session, and
+ * with it the lock, alive; it must stay well inside that timeout.
+ */
+const WALLET_LOCK_HEARTBEAT_MS = Number(process.env.FAIRMATE_WALLET_LOCK_HEARTBEAT_MS ?? 30_000);
+
+/** Live view of wallet-lock ownership handed to the drain that holds it. */
+export interface WalletLockFence {
+  /** True until the holder's session dies; queried by callers before an irreversible step. */
+  held(): boolean;
+  /** Throws once ownership is gone, so no new nonce is assigned without the lock. */
+  assertHeld(): void;
+}
 
 async function locked<T>(name: string, work: (client: Queryable) => Promise<T>): Promise<T> {
   const client = await pool.connect();
@@ -132,8 +148,15 @@ export class FairmateStore {
    * would park every waiter on a live connection while the holder still needs
    * connections for its own queries — with a small serverless pool, four
    * concurrent drains self-deadlock the instance.
+   *
+   * While `work` runs, a heartbeat keeps the holder's session out of the
+   * idle-in-transaction timeout, and the fence records the moment the session
+   * dies anyway (network loss, forced termination). Chain waits already in
+   * flight cannot be aborted — their transaction is persisted and idempotent to
+   * rebroadcast — but the drain consults the fence before every new nonce, so a
+   * lost lock can never let two drains sign against the same wallet.
    */
-  async withWalletLock<T>(work: () => Promise<T>): Promise<T> {
+  async withWalletLock<T>(work: (fence: WalletLockFence) => Promise<T>): Promise<T> {
     const deadline = Date.now() + WALLET_LOCK_WAIT_MS;
     for (;;) {
       const client = await pool.connect();
@@ -147,7 +170,7 @@ export class FairmateStore {
         );
         acquired = Boolean((result.rows[0] as { locked: boolean }).locked);
         if (acquired) {
-          const value = await work();
+          const value = await this.holdWalletLock(client, work);
           await client.query("commit");
           return value;
         }
@@ -169,6 +192,42 @@ export class FairmateStore {
         throw new Error("wallet lock is busy — another instance is draining the outbox");
       }
       await new Promise((resolve) => setTimeout(resolve, 200 + Math.floor(Math.random() * 300)));
+    }
+  }
+
+  /**
+   * Runs `work` while the lock transaction is open on `client`. A checked-out
+   * client with no error listener turns a server-side termination into an
+   * uncaught exception, so the listener here both keeps the process alive and
+   * feeds the fence. The heartbeat and listener are removed before the caller
+   * commits or rolls back.
+   */
+  private async holdWalletLock<T>(
+    client: PoolClient,
+    work: (fence: WalletLockFence) => Promise<T>,
+  ): Promise<T> {
+    let lost: Error | null = null;
+    const onError = (error: Error) => {
+      lost ??= error;
+    };
+    client.on("error", onError);
+    const fence: WalletLockFence = {
+      held: () => lost === null,
+      assertHeld: () => {
+        if (lost) throw new Error(`wallet lock lost: ${lost.message}`);
+      },
+    };
+    const heartbeat = setInterval(() => {
+      if (lost) return;
+      client.query("select 1").catch((error: Error) => {
+        lost ??= error;
+      });
+    }, WALLET_LOCK_HEARTBEAT_MS);
+    try {
+      return await work(fence);
+    } finally {
+      clearInterval(heartbeat);
+      client.off("error", onError);
     }
   }
 

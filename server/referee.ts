@@ -35,6 +35,11 @@ import {
 import { DurableOutbox } from "./durable-outbox.js";
 import { background } from "./background.js";
 import { verifyJournalState } from "./journal-verifier.js";
+import {
+  enforceAdmissionPolicy,
+  PracticeOnlyAdmissionError,
+  practiceOnly,
+} from "./runtime-policy.js";
 
 const MAX_ACTIVE_GAMES = Number(process.env.FAIRMATE_MAX_ACTIVE_GAMES ?? 3);
 const MAX_GAMES_PER_IP_PER_DAY = Number(process.env.FAIRMATE_MAX_GAMES_PER_IP_PER_DAY ?? 5);
@@ -150,6 +155,15 @@ export async function createGame(
   playerAddress?: string,
   stakeTxHash?: string,
 ): Promise<CreatedGame> {
+  // This must remain ahead of readiness, validation and all chain access.
+  try {
+    enforceAdmissionPolicy(practiceOnly, playerAddress, stakeTxHash);
+  } catch (error) {
+    if (error instanceof PracticeOnlyAdmissionError) {
+      throw new RefereeError(403, error.message);
+    }
+    throw error;
+  }
   ensureReady();
   const compute = getComputeState();
   if (!compute.ready || !compute.selection) {

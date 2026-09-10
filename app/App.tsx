@@ -21,6 +21,8 @@ export default function App() {
   const [rules, setRules] = useState(false);
 
   const boot = useCallback(async () => {
+    // Never leave a previously paid-capable policy rendered during refresh.
+    setPot(null);
     setLoading(true);
     setBootError(null);
     try {
@@ -114,6 +116,10 @@ export default function App() {
   }
   const start = (address?: string, stakeTxHash?: string) => {
     if (submitting) return;
+    if (pot?.practiceOnly !== false && (address !== undefined || stakeTxHash !== undefined)) {
+      setApiError("Recovery mode is practice-only. No payout address or stake transaction was sent.");
+      return;
+    }
     setSubmitting(true);
     setApiError(null);
     void api.createGame(address, stakeTxHash)
@@ -146,8 +152,12 @@ export default function App() {
       {rules && <Dialog titleId="rules-title" onClose={() => setRules(false)}>
         <span>Fair-play rules</span><h2 id="rules-title">THE MODEL CAN'T<br />SWITCH THE GAME.</h2>
         <p>The model, provider identity, verification scheme and move journal come from the live service configuration. FairMate recomputes every evidence property available to the browser and states the Router trust boundary explicitly.</p>
-        <p>Prize games stake {pot.entryFeeOg} 0G into the pot up front. A journal-recorded win pays {pot.perWinBountyOg} 0G back to your wallet, a draw or aborted game refunds the stake automatically, a loss leaves it in the pot. Practice games are free.</p>
-        <p>If you never make a move, the game aborts and your stake comes back. Once you move, the 5+0 clock is binding for both sides: running out of time is a loss even if you close the tab, and if the model runs out of time, you win the full payout.</p>
+        {pot.practiceOnly === false
+          ? <p>Prize games stake {pot.entryFeeOg} 0G into the pot up front. A journal-recorded win pays {pot.perWinBountyOg} 0G back to your wallet, a draw or aborted game refunds the stake automatically, a loss leaves it in the pot. Practice games are free.</p>
+          : <p>Recovery mode is practice-only. FairMate will not request or accept payout addresses, deposits, stake transaction hashes, or prize claims.</p>}
+        {pot.practiceOnly === false
+          ? <p>If you never make a move, the game aborts and your stake comes back. Once you move, the 5+0 clock is binding for both sides: running out of time is a loss even if you close the tab, and if the model runs out of time, you win the full payout.</p>
+          : <p>The 5+0 clock and verified move record remain active for practice games, but results have no financial settlement.</p>}
         <dl className="rules-data"><div><dt>Model</dt><dd>{pot.model}</dd></div><div><dt>Provider</dt><dd>{pot.provider}</dd></div><div><dt>Proof mode</dt><dd>{pot.verificationScheme}</dd></div><div><dt>Checked</dt><dd>{attestation ? new Date(attestation.verifiedAt).toLocaleString() : "Unavailable"}</dd></div></dl>
         {attestation?.trustBoundary && <p className="rules-trust">{attestation.trustBoundary}</p>}
         <a href={pot.chain.explorer} target="_blank" rel="noreferrer">Inspect live contracts <ExternalLink /></a>

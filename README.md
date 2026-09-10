@@ -55,6 +55,21 @@ Development defaults deliberately use Galileo + direct TeeML and may use `.walle
 
 Production also fails closed unless Router reports the exact pinned model/provider, healthy status, TeeTLS, verified trust mode, Intel TDX and dstack metadata.
 
+### Practice-only recovery
+
+Set `FAIRMATE_PRACTICE_ONLY=true` to expose only free practice games. The
+authoritative game admission gate rejects any supplied payout address or stake
+transaction before deposit validation or chain access, and the lobby removes
+all deposit and prize controls. Clients treat a missing policy field as
+practice-only.
+
+For an isolated recovery database, set `FAIRMATE_RECOVERY_DATABASE_URL`.
+FairMate prefers that URL over the unchanged `DATABASE_URL`; any nonempty
+recovery URL forces practice-only even if `FAIRMATE_PRACTICE_ONLY=false`. URLs
+are never returned by the API. In practice-only mode `/api/pot` performs no
+live pot read and returns financial fields as `null` (explicitly unavailable),
+not as invented balances.
+
 ## Mainnet production configuration
 
 | Component | Pinned value |

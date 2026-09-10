@@ -43,6 +43,7 @@ const pot: PotInfo = {
   effectiveSigner: "0x1B3AAef3ae5050EEE04ea38cD4B087472BD85EB0",
   verificationScheme: "router-teetls",
   attestationReady: true,
+  practiceOnly: false,
 };
 
 const FAKE_HASH = `0x${"f1".repeat(32)}`;

@@ -11,6 +11,7 @@ import {
   playerMove,
   resign,
 } from "./referee.js";
+import { practiceOnly, practiceOnlyFinancials } from "./runtime-policy.js";
 
 export const api = Router();
 
@@ -41,17 +42,30 @@ api.get("/health", (_req, res) => {
 api.get("/pot", async (_req, res) => {
   try {
     const c = getComputeState();
-    const reads = await readPot();
-    const info: PotInfo = {
+    const common = {
       chain: chainInfo(),
-      ...reads,
-      entryFeeOg: ENTRY_FEE_OG,
-      refereeAddress: refereeAddress(),
       model: c.selection?.model ?? "",
       provider: c.selection?.provider ?? "",
       effectiveSigner: c.selection?.effectiveSigner ?? "",
       verificationScheme: c.selection?.verificationScheme ?? "router-teetls",
       attestationReady: c.ready,
+    } as const;
+    if (practiceOnly) {
+      const info: PotInfo = {
+        ...common,
+        ...practiceOnlyFinancials(),
+        practiceOnly: true,
+      };
+      res.json(info);
+      return;
+    }
+    const reads = await readPot();
+    const info: PotInfo = {
+      ...common,
+      ...reads,
+      entryFeeOg: ENTRY_FEE_OG,
+      refereeAddress: refereeAddress(),
+      practiceOnly,
     };
     res.json(info);
   } catch (err) {

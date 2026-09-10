@@ -174,16 +174,8 @@ export interface GameState {
   updatedAt: number;
 }
 
-export interface PotInfo {
+interface PotInfoCommon {
   chain: ChainInfo;
-  potBalanceOg: string;
-  perWinBountyOg: string;
-  /** 0G a player must stake into the pot to start a prize game */
-  entryFeeOg: string;
-  dailyCapOg: string;
-  paidInWindowOg: string;
-  windowStart: number;
-  refereeAddress: string;
   model: string;
   provider: string;
   effectiveSigner: string;
@@ -191,6 +183,32 @@ export interface PotInfo {
   /** true once boot-time attestService + signer resolution completed */
   attestationReady: boolean;
 }
+
+export type PotInfo = PotInfoCommon & (
+  | {
+      /** Paid admission is enabled only when this field is explicitly false. */
+      practiceOnly: false;
+      potBalanceOg: string;
+      perWinBountyOg: string;
+      /** 0G a player must stake into the pot to start a prize game */
+      entryFeeOg: string;
+      dailyCapOg: string;
+      paidInWindowOg: string;
+      windowStart: number;
+      refereeAddress: string;
+    }
+  | {
+      /** Clients also treat a missing field from an old/invalid response as true. */
+      practiceOnly: true;
+      potBalanceOg: null;
+      perWinBountyOg: null;
+      entryFeeOg: null;
+      dailyCapOg: null;
+      paidInWindowOg: null;
+      windowStart: null;
+      refereeAddress: null;
+    }
+);
 
 export interface AttestationInfo {
   provider: string;

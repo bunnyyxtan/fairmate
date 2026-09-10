@@ -284,12 +284,14 @@ export interface PotReads {
 
 /**
  * Verifies an entry-stake transfer to the ChallengePot: mined, successful,
- * right destination, sent by the payout address, and at least the entry fee.
+ * right destination, sent by the payout address, exactly the entry fee, and
+ * not older than the storage epoch floor.
  */
 export async function verifyStakeDeposit(
   txHash: string,
   expectedFrom: string,
   requiredWei: bigint,
+  minBlock = 0,
 ): Promise<StakeCheck> {
   const [tx, receipt] = await Promise.all([
     provider.getTransaction(txHash),
@@ -306,27 +308,56 @@ export async function verifyStakeDeposit(
         blockNumber: receipt?.blockNumber ?? null,
       }
     : null;
-  return checkStakeFacts(facts, expectedFrom, requiredWei, deployment.potAddress, net.displayName);
+  return checkStakeFacts(facts, expectedFrom, requiredWei, deployment.potAddress, net.displayName, minBlock);
 }
 
-let potCache: { at: number; value: PotReads } | null = null;
+let refereeBalanceCache: { at: number; value: string } | null = null;
 
-export async function readPot(): Promise<PotReads> {
-  if (potCache && Date.now() - potCache.at < 15_000) return potCache.value;
-  const [balanceHex, perWin, cap, paid, windowStart] = await Promise.all([
+/** Native balance of the referee wallet that pays every anchor, award and refund. */
+export async function readRefereeBalance(): Promise<string> {
+  if (refereeBalanceCache && Date.now() - refereeBalanceCache.at < 15_000) return refereeBalanceCache.value;
+  const balanceHex = (await provider.send("eth_getBalance", [wallet.address, "latest"])) as string;
+  const value = ethers.formatEther(BigInt(balanceHex));
+  refereeBalanceCache = { at: Date.now(), value };
+  return value;
+}
+
+/** Pot reads plus the chain clock they were taken against. */
+export interface PotSnapshot extends PotReads {
+  /** timestamp of the latest block at read time; the contract rolls its daily window on block.timestamp */
+  blockTimestamp: number;
+}
+
+let potCache: { at: number; value: PotSnapshot } | null = null;
+
+/**
+ * Pot economics and the chain clock in one read. Cached for 15s for display;
+ * pass `fresh` where money is decided (paid admission inside its lock).
+ */
+export async function readPotSnapshot(options: { fresh?: boolean } = {}): Promise<PotSnapshot> {
+  if (!options.fresh && potCache && Date.now() - potCache.at < 15_000) return potCache.value;
+  const [balanceHex, perWin, cap, paid, windowStart, block] = await Promise.all([
     provider.send("eth_getBalance", [deployment.potAddress, "latest"]) as Promise<string>,
     pot.perWinBounty() as Promise<bigint>,
     pot.dailyCap() as Promise<bigint>,
     pot.paidInWindow() as Promise<bigint>,
     pot.windowStart() as Promise<bigint>,
+    provider.getBlock("latest"),
   ]);
-  const value: PotReads = {
+  if (!block) throw new Error("latest block unavailable from the RPC");
+  const value: PotSnapshot = {
     potBalanceOg: ethers.formatEther(BigInt(balanceHex)),
     perWinBountyOg: ethers.formatEther(perWin),
     dailyCapOg: ethers.formatEther(cap),
     paidInWindowOg: ethers.formatEther(paid),
     windowStart: Number(windowStart),
+    blockTimestamp: block.timestamp,
   };
   potCache = { at: Date.now(), value };
   return value;
+}
+
+export async function readPot(): Promise<PotReads> {
+  const { blockTimestamp: _blockTimestamp, ...reads } = await readPotSnapshot();
+  return reads;
 }

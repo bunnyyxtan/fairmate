@@ -31,6 +31,7 @@ export function Lobby({
   pot,
   busy,
   disabled,
+  pausedReason = null,
   error,
   onStart,
   onRules,
@@ -38,12 +39,20 @@ export function Lobby({
   pot: PotInfo;
   busy: boolean;
   disabled: boolean;
+  /** why every new game is paused right now (referee gate), shown beside the CTA */
+  pausedReason?: string | null;
   error: string | null;
   onStart: (address?: string, stakeTxHash?: string) => void;
   onRules: () => void;
 }) {
   const practiceOnly = pot.practiceOnly !== false;
-  const [mode, setMode] = useState<EntryMode>(practiceOnly ? "practice" : "prize");
+  // A prize slot exists only when the policy allows paid play AND the live
+  // gate (pot solvency, daily cap, referee gas) is open right now.
+  const prizeOpen = pot.practiceOnly === false && pot.admission?.prize.open === true;
+  const prizePausedReason = !practiceOnly && !prizeOpen
+    ? (pot.admission?.prize.open === false ? pot.admission.prize.reason : "prize admission status is unavailable")
+    : null;
+  const [mode, setMode] = useState<EntryMode>(prizeOpen ? "prize" : "practice");
   const [address, setAddress] = useState("");
   const [stakeTx, setStakeTx] = useState("");
   const [validation, setValidation] = useState("");
@@ -56,8 +65,8 @@ export function Lobby({
   const trimmedAddress = address.trim();
   const trimmedStakeTx = stakeTx.trim();
   // Re-evaluate the policy on every render so a stale prize selection cannot
-  // survive a recovery-mode update.
-  const prizeMode = !practiceOnly && mode === "prize";
+  // survive a policy or gate update.
+  const prizeMode = prizeOpen && mode === "prize";
   const invalidAddress = Boolean(trimmedAddress) && !isAddress(trimmedAddress);
   const missingAddress = prizeMode && !trimmedAddress;
   const invalidStakeTx = Boolean(trimmedStakeTx) && !TX_HASH_RE.test(trimmedStakeTx);
@@ -65,9 +74,9 @@ export function Lobby({
   const addressReady = Boolean(trimmedAddress) && !invalidAddress;
   const wallet = browserWallet();
   const mounted = useRef(true);
-  const practiceOnlyRef = useRef(practiceOnly);
+  const prizeOpenRef = useRef(prizeOpen);
   const disabledRef = useRef(disabled);
-  practiceOnlyRef.current = practiceOnly;
+  prizeOpenRef.current = prizeOpen;
   disabledRef.current = disabled;
   useEffect(() => () => {
     mounted.current = false;
@@ -107,10 +116,10 @@ export function Lobby({
   }
 
   async function copyPotAddress() {
-    if (disabled || practiceOnly) return;
+    if (disabled || !prizeOpen) return;
     try {
       await navigator.clipboard.writeText(pot.chain.potAddress);
-      if (!mounted.current || disabledRef.current || practiceOnlyRef.current) return;
+      if (!mounted.current || disabledRef.current || !prizeOpenRef.current) return;
       setWalletNote("ChallengePot address copied.");
       setCopiedPot(true);
       window.setTimeout(() => {
@@ -123,13 +132,13 @@ export function Lobby({
 
   async function stakeWithWallet() {
     const eth = browserWallet();
-    if (!eth || staking || disabled || practiceOnly) return;
+    if (!eth || staking || disabled || !prizeOpen) return;
     setStaking(true);
     setWalletNote("");
     try {
       const accounts = (await eth.request({ method: "eth_requestAccounts" })) as string[];
-      if (!mounted.current || disabledRef.current || practiceOnlyRef.current) {
-        throw new Error("Paid games are not currently enabled. No transaction was sent.");
+      if (!mounted.current || disabledRef.current || !prizeOpenRef.current) {
+        throw new Error("Prize games are not open right now. No transaction was sent.");
       }
       const account = accounts[0];
       if (!account) throw new Error("The wallet returned no account.");
@@ -152,19 +161,19 @@ export function Lobby({
           }],
         });
       }
+      // Re-read the live gate immediately before money moves: a stake sent
+      // into a paused prize slot could only be returned by hand.
       let livePot: PotInfo;
       try {
         livePot = await api.pot();
       } catch {
-        throw new Error("Could not confirm that paid games are enabled. No transaction was sent.");
+        throw new Error("Could not confirm that prize games are open. No transaction was sent.");
       }
-      if (
-        !mounted.current ||
-        disabledRef.current ||
-        practiceOnlyRef.current ||
-        livePot.practiceOnly !== false
-      ) {
-        throw new Error("Paid games are not currently enabled. No transaction was sent.");
+      if (!mounted.current || disabledRef.current || !prizeOpenRef.current || livePot.practiceOnly !== false) {
+        throw new Error("Prize games are not open right now. No transaction was sent.");
+      }
+      if (livePot.admission?.prize.open !== true) {
+        throw new Error(`${livePot.admission?.prize.open === false ? `Prize games are paused: ${livePot.admission.prize.reason}.` : "Prize games are not open right now."} No transaction was sent.`);
       }
       const hash = (await eth.request({
         method: "eth_sendTransaction",
@@ -195,18 +204,19 @@ export function Lobby({
   return (
     <>
       <section className="cl-intro">
-        <div><span className="cl-kicker"><Crown /> {practiceOnly ? "Practice-only recovery" : "Prize round"} · {pot.chain.network}</span><h1>{practiceOnly ? <><em>PLAY FOR PRACTICE.</em><br />KEEP FUNDS SAFE.</> : <>BEAT THE BOT.<br /><em>CLAIM THE POT.</em></>}</h1></div>
+        <div><span className="cl-kicker"><Crown /> {practiceOnly ? "Practice-only mode" : "Prize round"} · {pot.chain.network}</span><h1>{practiceOnly ? <><em>PLAY FOR PRACTICE.</em><br />KEEP FUNDS SAFE.</> : <>BEAT THE BOT.<br /><em>CLAIM THE POT.</em></>}</h1></div>
         <div className="cl-intro-side">
           <p>{practiceOnly
-            ? `Recovery mode is active. Play ${model} for free; do not send funds or connect a payout wallet.`
+            ? `Prize games are switched off. Play ${model} for free; do not send funds or connect a payout wallet.`
             : `One board. Five minutes each. Stake ${fee} 0G, beat ${model}, and a journal-recorded win pays ${bounty} 0G.`}</p>
           <button type="button" className="cl-proof-toggle" onClick={onRules}><ShieldCheck /> Why this match is fair <ChevronRight /></button>
         </div>
       </section>
-      {practiceOnly && <section className="attestation-warning" role="status"><ShieldCheck /><div><strong>Practice-only recovery mode</strong><p>No deposits, stakes, payout addresses, or prize claims are accepted. Start a free practice game below.</p></div></section>}
+      {practiceOnly && <section className="attestation-warning" role="status"><ShieldCheck /><div><strong>Practice-only mode</strong><p>No deposits, stakes, payout addresses, or prize claims are accepted. Start a free practice game below.</p></div></section>}
+      {prizePausedReason && <section className="attestation-warning" role="status"><ShieldCheck /><div><strong>Prize games paused</strong><p>{prizePausedReason.charAt(0).toUpperCase()}{prizePausedReason.slice(1)}. Practice games stay open, do not send a stake until this notice clears.</p></div></section>}
       <section className="cl-lobby" id="challenge">
         <article className="cl-pot">
-          <header><span>{practiceOnly ? "Recovery status" : "Live prize pool"}</span><Trophy /></header>
+          <header><span>{practiceOnly ? "Game status" : "Live prize pool"}</span><Trophy /></header>
           {practiceOnly ? (
             <>
               <div className="cl-pot-value"><small>Available mode</small><strong>Practice only</strong></div>
@@ -232,8 +242,8 @@ export function Lobby({
           <form className="fm-address-form is-compact" onSubmit={submit}>
             {!practiceOnly && (
               <div className="cl-mode-switch" role="radiogroup" aria-label="Game mode">
-                <button type="button" role="radio" aria-checked={prizeMode} className={prizeMode ? "is-selected" : ""} disabled={busy || disabled} onClick={() => pickMode("prize")}>
-                  <strong>Play for the prize</strong><span>Stake {fee} 0G · win {bounty} 0G</span>
+                <button type="button" role="radio" aria-checked={prizeMode} className={prizeMode ? "is-selected" : ""} disabled={busy || disabled || !prizeOpen} aria-describedby={prizePausedReason ? "prize-paused" : undefined} onClick={() => pickMode("prize")}>
+                  <strong>Play for the prize</strong><span>{prizeOpen ? `Stake ${fee} 0G · win ${bounty} 0G` : "Paused right now"}</span>
                 </button>
                 <button type="button" role="radio" aria-checked={!prizeMode} className={!prizeMode ? "is-selected" : ""} disabled={busy || disabled} onClick={() => pickMode("practice")}>
                   <strong>Practice game</strong><span>Free · no payout, same proof</span>
@@ -252,11 +262,11 @@ export function Lobby({
                     Send exactly {fee} 0G from your payout wallet to the ChallengePot, then paste the transaction hash.
                   </p>
                   <div className="cl-stake-actions">
-                    <button type="button" className={copiedPot ? "is-copied" : ""} onClick={() => void copyPotAddress()} disabled={busy || disabled || practiceOnly}>
+                    <button type="button" className={copiedPot ? "is-copied" : ""} onClick={() => void copyPotAddress()} disabled={busy || disabled || !prizeOpen}>
                       {copiedPot ? <><CheckCircle2 size={14} /> Copied</> : <><Copy size={14} /> Copy pot address</>}
                     </button>
                     {wallet && (
-                      <button type="button" className="is-wallet" onClick={() => void stakeWithWallet()} disabled={busy || staking || disabled || practiceOnly}>
+                      <button type="button" className="is-wallet" onClick={() => void stakeWithWallet()} disabled={busy || staking || disabled || !prizeOpen}>
                         <Wallet size={14} /> {staking ? "Waiting for your wallet…" : `Stake ${fee} 0G with browser wallet`}
                       </button>
                     )}
@@ -271,7 +281,8 @@ export function Lobby({
             <button type="submit" className="cl-start-cta" disabled={busy || disabled || (prizeMode && (invalidAddress || missingAddress || invalidStakeTx || missingStakeTx))}>
               {busy ? "Opening your board…" : prizeMode ? "Lock in & play for the prize" : "Start practice game"} <ChevronRight />
             </button>
-            <p id="address-hint" className={validation ? "field-error" : ""} role={validation ? "alert" : undefined}>{validation || (practiceOnly ? "Practice is free. FairMate will not ask for a wallet, deposit, or transaction hash." : hint)}</p>
+            <p id="address-hint" className={validation ? "field-error" : ""} role={validation ? "alert" : undefined}>{validation || (pausedReason ? `New games are paused right now: ${pausedReason}.` : practiceOnly ? "Practice is free. FairMate will not ask for a wallet, deposit, or transaction hash." : prizePausedReason ? `Prize games are paused right now, practice is open. Reason: ${prizePausedReason}.` : hint)}</p>
+            {prizePausedReason && <span id="prize-paused" hidden>{prizePausedReason}</span>}
             {busy && (
               <div className="cl-start-status" role="status" aria-live="polite">
                 <span className="loader" aria-hidden="true" />

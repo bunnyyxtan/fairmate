@@ -84,3 +84,16 @@ test("an underpaid stake is rejected with both amounts named", () => {
   assert.match(check.reason, /exactly 0\.1/);
   assert.match(check.reason, /0\.09/);
 });
+
+test("stakes mined before the storage epoch floor are refused as already spent", () => {
+  const stale = checkStakeFacts(facts({ blockNumber: 41 }), PLAYER, MIN, POT, "testnet", 42);
+  assert.equal(stale.ok, false);
+  if (!stale.ok) {
+    assert.equal(stale.retryable, false);
+    assert.match(stale.reason, /block 41, before FairMate's current storage epoch \(block 42\)/);
+  }
+  const fresh = checkStakeFacts(facts({ blockNumber: 42 }), PLAYER, MIN, POT, "testnet", 42);
+  assert.ok(fresh.ok);
+  const noFloor = checkStakeFacts(facts({ blockNumber: 1 }), PLAYER, MIN, POT, "testnet");
+  assert.ok(noFloor.ok);
+});

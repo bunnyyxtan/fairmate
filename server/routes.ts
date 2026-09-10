@@ -4,14 +4,21 @@ import { getComputeState } from "./compute-service.js";
 import { chainInfo, readPot, refereeAddress } from "./chain.js";
 import {
   ENTRY_FEE_OG,
+  GAS_RESERVE_OG,
   RefereeError,
   createGame,
   gameEvidence,
   getGame,
   playerMove,
+  readAdmissionGates,
   resign,
 } from "./referee.js";
-import { practiceOnly, practiceOnlyFinancials } from "./runtime-policy.js";
+import {
+  practiceOnly,
+  practiceOnlyFinancials,
+  practiceOnlyReason,
+  stakeMinBlock,
+} from "./runtime-policy.js";
 
 export const api = Router();
 
@@ -36,7 +43,12 @@ function fail(res: { status: (code: number) => { json: (b: ApiError) => void } }
 
 api.get("/health", (_req, res) => {
   const c = getComputeState();
-  res.json({ ok: true, attestationReady: c.ready, bootError: c.bootError });
+  res.json({
+    ok: true,
+    attestationReady: c.ready,
+    bootError: c.bootError,
+    policy: { practiceOnly, practiceOnlyReason, stakeMinBlock, gasReserveOg: GAS_RESERVE_OG },
+  });
 });
 
 api.get("/pot", async (_req, res) => {
@@ -49,22 +61,30 @@ api.get("/pot", async (_req, res) => {
       effectiveSigner: c.selection?.effectiveSigner ?? "",
       verificationScheme: c.selection?.verificationScheme ?? "router-teetls",
       attestationReady: c.ready,
+      gasReserveOg: GAS_RESERVE_OG,
     } as const;
     if (practiceOnly) {
+      // Chain-free apart from the referee's own balance, which every game
+      // (practice included) depends on for its anchors.
+      const gates = await readAdmissionGates();
       const info: PotInfo = {
         ...common,
         ...practiceOnlyFinancials(),
         practiceOnly: true,
+        refereeBalanceOg: gates.refereeBalanceOg,
+        admission: { practice: gates.practice, prize: gates.prize },
       };
       res.json(info);
       return;
     }
-    const reads = await readPot();
+    const [reads, gates] = await Promise.all([readPot(), readAdmissionGates()]);
     const info: PotInfo = {
       ...common,
       ...reads,
       entryFeeOg: ENTRY_FEE_OG,
       refereeAddress: refereeAddress(),
+      refereeBalanceOg: gates.refereeBalanceOg,
+      admission: { practice: gates.practice, prize: gates.prize },
       practiceOnly,
     };
     res.json(info);

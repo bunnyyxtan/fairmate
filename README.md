@@ -4,7 +4,7 @@
 
 FairMate is human-versus-AI 5+0 chess for the 0G Bridge Wave 3 hackathon. You play White against **Qwen 3.7 Max** through 0G Mainnet Router. Every Black move is legal-gated by `chess.js`, bound to exact Router request/response evidence, and committed to a public journal on Aristotle Mainnet. A journal-recorded human win unlocks a permissionless contract payout.
 
-Entry to a prize game is a `0.1 0G` stake into the ChallengePot. A journal-recorded win pays `0.2 0G` back, your stake plus a `0.1 0G` bounty. A draw or aborted game refunds the stake automatically. A loss leaves it in the pot. Practice games are free.
+Entry to a prize game is a `0.1 0G` stake into the ChallengePot. A journal-recorded win pays `0.2 0G` back, your stake plus a `0.1 0G` bounty. A draw or aborted game refunds the stake from the pot (driven by the referee's durable outbox, with a manual owner fallback if the pot transaction keeps failing). A loss leaves it in the pot. Practice games are free.
 
 <img src="docs/screenshots/lobby.jpg" width="100%" alt="FairMate prize lobby: live 3.1 0G pot, 0.1 0G entry stake, 0.2 0G win payout, qwen3.7-max defending the pot">
 
@@ -55,20 +55,55 @@ Development defaults deliberately use Galileo + direct TeeML and may use `.walle
 
 Production also fails closed unless Router reports the exact pinned model/provider, healthy status, TeeTLS, verified trust mode, Intel TDX and dstack metadata.
 
-### Practice-only recovery
+### Practice-only mode, storage epochs and admission gates
 
-Set `FAIRMATE_PRACTICE_ONLY=true` to expose only free practice games. The
+`FAIRMATE_PRACTICE_ONLY=true` exposes only free practice games. The
 authoritative game admission gate rejects any supplied payout address or stake
 transaction before deposit validation or chain access, and the lobby removes
 all deposit and prize controls. Clients treat a missing policy field as
 practice-only.
 
-For an isolated recovery database, set `FAIRMATE_RECOVERY_DATABASE_URL`.
-FairMate prefers that URL over the unchanged `DATABASE_URL`; any nonempty
-recovery URL forces practice-only even if `FAIRMATE_PRACTICE_ONLY=false`. URLs
-are never returned by the API. In practice-only mode `/api/pot` performs no
-live pot read and returns financial fields as `null` (explicitly unavailable),
-not as invented balances.
+**Storage epoch.** The consumed-stake table is what stops one stake transaction
+from admitting two games. When storage is replaced (`FAIRMATE_RECOVERY_DATABASE_URL`,
+preferred over the unchanged `DATABASE_URL`; URLs are never returned by the
+API), that table starts empty, so a stake spent before the switch would look
+fresh again. `FAIRMATE_STAKE_MIN_BLOCK` is the epoch floor, the first block
+whose stakes are admissible: any stake mined in an earlier block is refused
+outright, with a message that names both blocks. Replacement storage stays
+practice-only until a valid floor is configured, and a malformed floor fails
+closed on any storage. Choose a block strictly after the last block in which
+the previous storage could have consumed a stake (at cutover, the current head
+plus one, or any later block, since the site is practice-only until the floor
+is set); genuine stakes from before the floor are returned manually by the pot
+owner via `defund`.
+
+**Live admission gates.** Before any game opens the referee checks facts it
+would otherwise discover only after taking a player's money:
+
+| Gate | Applies to | Closed when |
+|---|---|---|
+| Referee gas reserve | every game | the referee wallet holds less than `FAIRMATE_GAS_RESERVE_OG` (default `0.1`); every game anchors its start, each ply and its end at roughly `0.0004 0G` each on Mainnet |
+| Bounty configured | prize games | `perWinBounty` on the ChallengePot is zero |
+| Pot solvency | prize games | the pot balance cannot pay one win for every unsettled prize game plus this one |
+| Daily-cap headroom | prize games | those same reserved wins would exceed `dailyCap` inside the live 24h window (mirrors the contract's window roll on `block.timestamp`) |
+
+An unsettled prize game is a staked board still in play, or one whose award
+or refund has not been confirmed on-chain yet; each reserves one full win
+payout, so concurrent boards can never be admitted against the same pot or
+cap headroom. The binding decision is taken under the admission lock with
+fresh chain reads and the latest block's timestamp as the clock; `/api/pot`
+serves the same gates from 15-second-cached reads for display.
+
+`/api/pot` reports the gates as `admission.practice` and `admission.prize`
+with the exact reason, plus `refereeBalanceOg` and `gasReserveOg`; the lobby
+shows the reason, disables the prize slot, and the wallet staking button
+re-reads the gate immediately before sending a stake. A closed gate answers
+game creation with `503` and the same reason. A refused stake is never burned:
+the same transaction hash can be submitted again once the gate reopens, and
+only transfers that can never admit a game (wrong amount, wrong sender, mined
+before the storage epoch) need the manual `defund` path. In practice-only mode
+`/api/pot` performs no live pot read and returns financial fields as `null`
+(explicitly unavailable), not as invented balances.
 
 ## Mainnet production configuration
 
@@ -220,6 +255,7 @@ The browser recomputes request/response hashes, validates trace consistency, con
 - **2026-08-24:** Entry-stake era: prize games stake `0.1 0G`, wins pay `0.2 0G` (stake back + bounty), draws and aborts auto-refund via `defund` ([config tx](https://chainscan.0g.ai/tx/0xb003262c859843271b44581dbbe6b140b4045778f7dbaf1353604a244d3d0226))
 - **2026-08-24:** Fairness hardening: zero-move games abort with a refund instead of settling as silent losses, resign-before-move refunds too, binding-clock rules disclosed in the lobby and warned on tab close, evidence download auto-unlocks after chain sync, full adversarial [threat model](docs/THREAT-MODEL.md) published
 - **2026-08-24:** Refund path proven live: a staked production game was abandoned, auto-aborted and refunded `0.1 0G` on Mainnet ([refund tx](https://chainscan.0g.ai/tx/0x39788429d01bf77434dc80f21ed3963872f0114ed14be76ffb9f3f3c4db85c80))
+- **2026-09-10:** Storage-epoch stake floor (`FAIRMATE_STAKE_MIN_BLOCK`) replaces the blanket practice-only rule for replacement storage; live admission gates reserve one win payout per unsettled prize game and pause every game below the referee gas reserve, with the reasons surfaced in `/api/pot` and the lobby
 ## Scripts
 
 | Command | Purpose |
@@ -232,6 +268,7 @@ The browser recomputes request/response hashes, validates trace consistency, con
 | `pnpm run selfplay` | Qwen 3.7 Max Mainnet Router self-play evidence, no chain writes |
 | `pnpm run compile` | solc → `build/FairMate.json` |
 | `pnpm run balance -- --network=mainnet` | referee chain balance (`CHECK_DIRECT_LEDGER=1` for archived direct Compute) |
+| `OG_CHAIN_NETWORK=mainnet npx tsx scripts/configure-stake.ts` | owner-only `configureBounty(perWin, dailyCap)` for the entry-stake economics |
 | `pnpm test` / `pnpm run typecheck` / `pnpm run build` | unit, type and production bundle gates |
 
 ## License

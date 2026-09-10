@@ -174,6 +174,9 @@ export interface GameState {
   updatedAt: number;
 }
 
+/** One live admission gate; a closed gate always carries a player-readable reason. */
+export type AdmissionGate = { open: true; reason: null } | { open: false; reason: string };
+
 interface PotInfoCommon {
   chain: ChainInfo;
   model: string;
@@ -182,6 +185,18 @@ interface PotInfoCommon {
   verificationScheme: VerificationScheme;
   /** true once boot-time attestService + signer resolution completed */
   attestationReady: boolean;
+  /** native 0G the referee wallet holds for anchors, awards and refunds */
+  refereeBalanceOg: string;
+  /** referee balance below which no game (practice included) is opened */
+  gasReserveOg: string;
+  /**
+   * Live gates the referee applies at game creation. Clients treat a missing
+   * gate (old/invalid response) as closed.
+   */
+  admission: {
+    practice: AdmissionGate;
+    prize: AdmissionGate;
+  };
 }
 
 export type PotInfo = PotInfoCommon & (

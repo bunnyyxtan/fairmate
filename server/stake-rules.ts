@@ -28,6 +28,12 @@ export function checkStakeFacts(
   requiredWei: bigint,
   potAddress: string,
   network: string,
+  /**
+   * Storage epoch floor. Stakes mined before it may already have been
+   * consumed by a game whose record lived in a previous database, so they are
+   * refused outright instead of being trusted as fresh.
+   */
+  minBlock = 0,
 ): StakeCheck {
   if (!facts || !facts.found) {
     return {
@@ -73,6 +79,13 @@ export function checkStakeFacts(
       ok: false,
       retryable: false,
       reason: `stake must be exactly ${formatEther(requiredWei)} 0G, this transaction sent ${formatEther(facts.valueWei)} 0G, send a fresh transfer for the exact amount`,
+    };
+  }
+  if (facts.blockNumber < minBlock) {
+    return {
+      ok: false,
+      retryable: false,
+      reason: `stake was mined in block ${facts.blockNumber}, before FairMate's current storage epoch (block ${minBlock}); stakes from before the epoch cannot start a game, ask the pot owner to return that transfer and send a fresh stake`,
     };
   }
   return { ok: true, amountOg: formatEther(facts.valueWei), blockNumber: facts.blockNumber };

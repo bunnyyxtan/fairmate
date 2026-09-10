@@ -14,6 +14,8 @@ import {
   readAward,
   readJournalGame,
   readPot,
+  readPotSnapshot,
+  readRefereeBalance,
   transactionReceipt,
   verifyStakeDeposit,
 } from "./chain.js";
@@ -39,7 +41,9 @@ import {
   enforceAdmissionPolicy,
   PracticeOnlyAdmissionError,
   practiceOnly,
+  stakeMinBlock,
 } from "./runtime-policy.js";
+import { evaluateGasGate, evaluatePrizeGate, type AdmissionGate } from "./paid-admission.js";
 
 const MAX_ACTIVE_GAMES = Number(process.env.FAIRMATE_MAX_ACTIVE_GAMES ?? 3);
 const MAX_GAMES_PER_IP_PER_DAY = Number(process.env.FAIRMATE_MAX_GAMES_PER_IP_PER_DAY ?? 5);
@@ -51,6 +55,13 @@ const GAME_CLOCK_MS = Number(process.env.FAIRMATE_CLOCK_MS ?? 5 * 60 * 1000);
 /** 0G a player stakes into the ChallengePot to start a prize game. */
 export const ENTRY_FEE_OG = process.env.FAIRMATE_ENTRY_FEE_OG ?? "0.1";
 const ENTRY_FEE_WEI = ethers.parseEther(ENTRY_FEE_OG);
+/**
+ * Native 0G the referee wallet must hold before any game opens. Every game
+ * anchors its start, each ply and its end (about 0.0004 0G each on mainnet),
+ * prize games add an award or refund on top.
+ */
+export const GAS_RESERVE_OG = process.env.FAIRMATE_GAS_RESERVE_OG ?? "0.1";
+ethers.parseEther(GAS_RESERVE_OG);
 const INFERENCE_LEASE_MS = 5 * 60 * 1000;
 const START_FEN = new Chess().fen();
 const store = new FairmateStore();
@@ -150,6 +161,62 @@ async function expireOverdueGames(): Promise<void> {
   if (anchored) background("admission expiry anchor", drainPendingActions());
 }
 
+export interface AdmissionGates {
+  refereeBalanceOg: string;
+  practice: AdmissionGate;
+  prize: AdmissionGate;
+}
+
+/**
+ * Live admission gates from cached chain reads, for display and as a cheap
+ * early refusal. Prize admission is reported closed by policy while
+ * practice-only, without touching the pot. The binding prize decision is
+ * re-taken with fresh reads inside the admission lock.
+ */
+export async function readAdmissionGates(): Promise<AdmissionGates> {
+  const refereeBalanceOg = await readRefereeBalance();
+  const gas = { refereeBalanceOg, gasReserveOg: GAS_RESERVE_OG };
+  const practice = evaluateGasGate(gas);
+  if (practiceOnly) {
+    return {
+      refereeBalanceOg,
+      practice,
+      prize: { open: false, reason: "prize games are disabled by the practice-only policy" },
+    };
+  }
+  const [snapshot, outstanding] = await Promise.all([readPotSnapshot(), store.prizeLiabilities()]);
+  const prize = evaluatePrizeGate(gas, snapshot, snapshot.blockTimestamp * 1000, outstanding);
+  return { refereeBalanceOg, practice, prize };
+}
+
+/** A refused stake is never burned: the same transaction can be retried once the gate reopens. */
+function prizeRefusal(reason: string): string {
+  return `${reason}. A stake already sent stays unspent and can be submitted again later`;
+}
+
+/** Upper bound on chain reads taken while the global admission lock is held. */
+const LOCKED_CHAIN_READ_MS = Number(process.env.FAIRMATE_LOCKED_CHAIN_READ_MS ?? 10_000);
+
+/**
+ * The admission lock is a blocking transaction lock, so every waiter pins a
+ * pool connection while the holder works. A hung RPC must therefore fail the
+ * admission rather than hold the lock open.
+ */
+async function boundedWhileLocked<T>(work: Promise<T>): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new RefereeError(503, "chain reads timed out while checking the prize pool, try again")),
+      LOCKED_CHAIN_READ_MS,
+    );
+  });
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function createGame(
   ip: string,
   playerAddress?: string,
@@ -190,7 +257,9 @@ export async function createGame(
     if (!ethers.isHexString(stakeTxHash, 32)) {
       throw new RefereeError(400, "stakeTxHash must be a 0x-prefixed 32-byte transaction hash");
     }
-    const check = await verifyStakeDeposit(stakeTxHash, playerAddress, ENTRY_FEE_WEI);
+    const gates = await readAdmissionGates();
+    if (!gates.prize.open) throw new RefereeError(503, prizeRefusal(gates.prize.reason));
+    const check = await verifyStakeDeposit(stakeTxHash, playerAddress, ENTRY_FEE_WEI, stakeMinBlock);
     if (!check.ok) throw new RefereeError(check.retryable ? 409 : 400, check.reason);
     stake = {
       txHash: stakeTxHash.toLowerCase(),
@@ -204,6 +273,9 @@ export async function createGame(
       400,
       "a stake needs a payout address on the same game, practice games are free",
     );
+  } else {
+    const gates = await readAdmissionGates();
+    if (!gates.practice.open) throw new RefereeError(503, gates.practice.reason);
   }
   const accessToken = randomBytes(32).toString("base64url");
   const gameId = ethers.hexlify(ethers.randomBytes(32));
@@ -263,6 +335,23 @@ export async function createGame(
       );
     }
     if (stake) {
+      // Binding prize decision: fresh pot reads on the chain clock, with one
+      // win payout reserved per unsettled prize game, taken under the same
+      // lock that burns the stake, so two boards cannot share headroom.
+      const [snapshot, outstanding, refereeBalanceOg] = await boundedWhileLocked(
+        Promise.all([
+          readPotSnapshot({ fresh: true }),
+          store.prizeLiabilities(client),
+          readRefereeBalance(),
+        ]),
+      );
+      const prize = evaluatePrizeGate(
+        { refereeBalanceOg, gasReserveOg: GAS_RESERVE_OG },
+        snapshot,
+        snapshot.blockTimestamp * 1000,
+        outstanding,
+      );
+      if (!prize.open) throw new RefereeError(503, prizeRefusal(prize.reason));
       const first = await store.registerStake(stake.txHash, gameId, client);
       if (!first) {
         throw new RefereeError(

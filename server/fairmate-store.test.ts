@@ -140,6 +140,23 @@ test("definitively failed starts do not consume persisted daily admission", asyn
   });
 });
 
+test("prize liabilities count staked boards in play and unsettled awards or refunds only", async () => {
+  const store = new FairmateStore();
+  const stake = { txHash: "0xstake", from: "0x0000000000000000000000000000000000000009", amountOg: "0.1", blockNumber: 1, verifiedAt: 0 };
+  const practice = state(gameId());
+  const activeStaked = { ...state(gameId()), stake };
+  const pendingAward = { ...state(gameId(), "ended"), stake, result: "player_win" as const, awardTx: { status: "pending" as const } };
+  const pendingRefund = { ...state(gameId(), "ended"), stake, result: "draw" as const, refundTx: { status: "pending" as const } };
+  const settledAward = { ...state(gameId(), "ended"), stake, result: "player_win" as const, awardTx: { status: "confirmed" as const, txHash: "0xaward" } };
+  const settledLoss = { ...state(gameId(), "ended"), stake, result: "model_win" as const };
+  const before = await store.prizeLiabilities();
+  for (const value of [practice, activeStaked, pendingAward, pendingRefund, settledAward, settledLoss]) {
+    await insert(store, value);
+    await store.save(value.gameId, value, []);
+  }
+  assert.equal(await store.prizeLiabilities(), before + 3);
+});
+
 test("prepared nonce precedes an unsigned action on an older row", async () => {
   const store = new FairmateStore();
   const olderUnsignedId = gameId();

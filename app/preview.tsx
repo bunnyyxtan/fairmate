@@ -43,6 +43,9 @@ const pot: PotInfo = {
   effectiveSigner: "0x1B3AAef3ae5050EEE04ea38cD4B087472BD85EB0",
   verificationScheme: "router-teetls",
   attestationReady: true,
+  refereeBalanceOg: "0.42",
+  gasReserveOg: "0.1",
+  admission: { practice: { open: true, reason: null }, prize: { open: true, reason: null } },
   practiceOnly: false,
 };
 

@@ -272,6 +272,22 @@ export class FairmateStore {
     };
   }
 
+  /**
+   * Staked games that can still draw on the pot: boards in play plus games
+   * whose award or refund has not been confirmed on-chain yet. Paid admission
+   * reserves one full win payout for each of them before opening another.
+   */
+  async prizeLiabilities(client: Queryable = pool): Promise<number> {
+    const result = await client.query(
+      `select count(*)::int outstanding from ${TABLE}
+       where state ? 'stake'
+         and (status in ('awaiting_player','model_thinking')
+           or state->'awardTx'->>'status' = 'pending'
+           or state->'refundTx'->>'status' = 'pending')`,
+    );
+    return (result.rows[0] as { outstanding: number }).outstanding;
+  }
+
   async claimInference(gameId: string, leaseMs: number): Promise<boolean> {
     const result = await pool.query(
       `update ${TABLE} set inference_owner=$2,

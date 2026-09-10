@@ -116,8 +116,8 @@ export default function App() {
   }
   const start = (address?: string, stakeTxHash?: string) => {
     if (submitting) return;
-    if (pot?.practiceOnly !== false && (address !== undefined || stakeTxHash !== undefined)) {
-      setApiError("Recovery mode is practice-only. No payout address or stake transaction was sent.");
+    if ((pot?.practiceOnly !== false || pot.admission?.prize.open !== true) && (address !== undefined || stakeTxHash !== undefined)) {
+      setApiError("Prize games are not open right now. No payout address or stake transaction was sent.");
       return;
     }
     setSubmitting(true);
@@ -140,13 +140,21 @@ export default function App() {
   if (loading) return <main className="boot-state" aria-live="polite"><span className="loader" /><h1>Preparing the prize table…</h1><p>Loading live pot and attestation data.</p></main>;
   if (!pot) return <main className="boot-state error-state" role="alert"><ShieldCheck /><h1>FairMate is unavailable.</h1><p>{bootError}</p><button type="button" onClick={() => void boot()}>Try again</button></main>;
 
+  // Every game anchors from the referee wallet; a closed practice gate pauses the lobby.
+  const gamesOpen = pot.admission?.practice.open === true;
+  const pausedReason = gamesOpen
+    ? null
+    : pot.admission?.practice.open === false
+      ? pot.admission.practice.reason
+      : "FairMate could not confirm that it can anchor a new game right now";
   return (
     <div className="fm fm-challenge-lobby">
       <header className="cl-nav"><Brand /><nav aria-label="Primary"><a href="#challenge">Challenge</a><button type="button" onClick={() => setRules(true)}>How it stays fair</button><a href="#contracts">On-chain</a></nav><span className="fm-network"><i />{pot.chain.network} · {pot.chain.chainId}</span></header>
       <main>
-        {!game ? <Lobby pot={pot} busy={submitting} disabled={!pot.attestationReady || Boolean(bootError)} error={apiError} onStart={start} onRules={() => setRules(true)} /> :
+        {!game ? <Lobby pot={pot} busy={submitting} disabled={!pot.attestationReady || Boolean(bootError) || !gamesOpen} pausedReason={pausedReason} error={apiError} onStart={start} onRules={() => setRules(true)} /> :
           <GameView game={game} pot={pot} accessToken={gameToken ?? ""} submitting={submitting} pendingAction={pendingAction} error={apiError} onMove={(san) => void action("move", () => api.move(game.gameId, san, gameToken ?? ""))} onResign={() => void action("resign", () => api.resign(game.gameId, gameToken ?? ""))} onReplay={replay} onLobby={lobby} />}
         {!game && (!pot.attestationReady || bootError) && <section className="attestation-warning" role="alert"><ShieldCheck /><div><strong>Attestation unavailable</strong><p>{bootError ?? "The secure model attestation is still being prepared. New games are disabled until it is ready."}</p></div><button type="button" onClick={() => void boot()}>Check again</button></section>}
+        {!game && pot.attestationReady && !bootError && pausedReason && <section className="attestation-warning" role="alert"><ShieldCheck /><div><strong>New games paused</strong><p>{`${pausedReason.charAt(0).toUpperCase()}${pausedReason.slice(1)}.`}</p></div><button type="button" onClick={() => void boot()}>Check again</button></section>}
       </main>
       <footer id="contracts"><Brand compact /><span>Verifiable chess, built on 0G.</span><a href={pot.chain.explorer} target="_blank" rel="noreferrer">Open {pot.chain.network} explorer <ExternalLink size={16} /></a></footer>
       {rules && <Dialog titleId="rules-title" onClose={() => setRules(false)}>
@@ -154,7 +162,7 @@ export default function App() {
         <p>The model, provider identity, verification scheme and move journal come from the live service configuration. FairMate recomputes every evidence property available to the browser and states the Router trust boundary explicitly.</p>
         {pot.practiceOnly === false
           ? <p>Prize games stake {pot.entryFeeOg} 0G into the pot up front. A journal-recorded win pays {pot.perWinBountyOg} 0G back to your wallet, a draw or aborted game refunds the stake automatically, a loss leaves it in the pot. Practice games are free.</p>
-          : <p>Recovery mode is practice-only. FairMate will not request or accept payout addresses, deposits, stake transaction hashes, or prize claims.</p>}
+          : <p>FairMate is in practice-only mode. It will not request or accept payout addresses, deposits, stake transaction hashes, or prize claims.</p>}
         {pot.practiceOnly === false
           ? <p>If you never make a move, the game aborts and your stake comes back. Once you move, the 5+0 clock is binding for both sides: running out of time is a loss even if you close the tab, and if the model runs out of time, you win the full payout.</p>
           : <p>The 5+0 clock and verified move record remain active for practice games, but results have no financial settlement.</p>}

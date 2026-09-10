@@ -6,6 +6,7 @@ import {
   FAIRMATE_ROUTER_MAX_PROMPT_PRICE_USD,
   FAIRMATE_ROUTER_MODEL,
   FAIRMATE_ROUTER_PROVIDER,
+  withinPerMillionCeiling,
 } from "../shared/router-policy.js";
 import type {
   RouterReceiptBundle,
@@ -89,12 +90,14 @@ function exactProvider(list: RouterProviderMetadata[]): RouterProviderMetadata {
       `0G Router: provider ${provider.address} no longer satisfies the audited TeeTLS/TDX/dstack trust profile`,
     );
   }
-  const prompt = Number(provider.pricing_usd?.prompt);
-  const completion = Number(provider.pricing_usd?.completion);
-  if (!Number.isFinite(prompt) || prompt > 0.0000009) {
+  // Discovery enforces the ACTIVE ceiling epoch on the live listing, so a
+  // Router price rise fails closed here before any paid request is sent.
+  const prompt = provider.pricing_usd?.prompt;
+  const completion = provider.pricing_usd?.completion;
+  if (!withinPerMillionCeiling(prompt, ROUTER_MAX_PROMPT_PRICE_USD)) {
     throw new Error(`0G Router: prompt price exceeds FairMate ceiling (${String(prompt)} USD/token)`);
   }
-  if (!Number.isFinite(completion) || completion > 0.0000026) {
+  if (!withinPerMillionCeiling(completion, ROUTER_MAX_COMPLETION_PRICE_USD)) {
     throw new Error(`0G Router: completion price exceeds FairMate ceiling (${String(completion)} USD/token)`);
   }
   return provider;

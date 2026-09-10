@@ -1,9 +1,8 @@
 import { verifyMessage } from "ethers";
 import { canonicalHash, sha256Utf8 } from "./canonical.js";
 import {
-  FAIRMATE_ROUTER_MAX_COMPLETION_PRICE_USD,
-  FAIRMATE_ROUTER_MAX_PROMPT_PRICE_USD,
   FAIRMATE_ROUTER_MODEL,
+  isAuditedRouterPriceCeiling,
   isAuditedRouterProvider,
 } from "./router-policy.js";
 import type {
@@ -244,13 +243,12 @@ function verifyRouterReceiptBundle(
     b.requestConstraints.providerAddress.toLowerCase() === b.provider.toLowerCase() &&
     b.model === FAIRMATE_ROUTER_MODEL &&
     isAuditedRouterProvider(b.provider) &&
-    b.requestConstraints.maxPromptPriceUsd === FAIRMATE_ROUTER_MAX_PROMPT_PRICE_USD &&
-    b.requestConstraints.maxCompletionPriceUsd === FAIRMATE_ROUTER_MAX_COMPLETION_PRICE_USD;
+    isAuditedRouterPriceCeiling(b.requestConstraints);
   push(
     "routing constraints bound",
     constraintsOk,
     constraintsOk
-      ? `FairMate's fixed model, an audited provider and ${FAIRMATE_ROUTER_MAX_PROMPT_PRICE_USD}/${FAIRMATE_ROUTER_MAX_COMPLETION_PRICE_USD} Router ceilings are bound`
+      ? `FairMate's fixed model, an audited provider and the audited ${b.requestConstraints.maxPromptPriceUsd}/${b.requestConstraints.maxCompletionPriceUsd} Router ceilings are bound`
       : "model, provider, or price-ceiling metadata does not match FairMate's audited Router policy",
   );
 

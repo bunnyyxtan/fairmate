@@ -137,3 +137,42 @@ test("client rejects self-consistent evidence with looser Router price ceilings"
   assert.equal(checks.find((check) => check.name === "routing constraints bound")?.pass, false);
   assert.equal(allChecksPass(checks), false);
 });
+test("evidence recorded under an earlier audited ceiling epoch keeps verifying", () => {
+  const completion = parseRouterCompletion({
+    rawBody: response(),
+    requestBodyJson: JSON.stringify({ model: ROUTER_MODEL, verify_tee: true }),
+    selection,
+    latencyMs: 42,
+  });
+  const launchEpoch = {
+    ...completion.receipt,
+    requestConstraints: {
+      ...completion.receipt.requestConstraints,
+      maxPromptPriceUsd: "0.9",
+      maxCompletionPriceUsd: "2.6",
+    },
+  };
+  launchEpoch.receiptHash = computeRouterReceiptHash(launchEpoch);
+  assert.equal(allChecksPass(verifyReceiptBundle(launchEpoch)), true);
+});
+
+test("client rejects a ceiling pair mixed across audited epochs", () => {
+  const completion = parseRouterCompletion({
+    rawBody: response(),
+    requestBodyJson: JSON.stringify({ model: ROUTER_MODEL, verify_tee: true }),
+    selection,
+    latencyMs: 42,
+  });
+  const mixed = {
+    ...completion.receipt,
+    requestConstraints: {
+      ...completion.receipt.requestConstraints,
+      maxPromptPriceUsd: "0.9",
+      maxCompletionPriceUsd: "5.5",
+    },
+  };
+  mixed.receiptHash = computeRouterReceiptHash(mixed);
+  const checks = verifyReceiptBundle(mixed);
+  assert.equal(checks.find((check) => check.name === "routing constraints bound")?.pass, false);
+  assert.equal(allChecksPass(checks), false);
+});

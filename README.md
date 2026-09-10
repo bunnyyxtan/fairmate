@@ -79,6 +79,7 @@ not as invented balances.
 | Model | `qwen3.7-max` |
 | Provider identity | `0x1B3AAef3ae5050EEE04ea38cD4B087472BD85EB0` (active pin, audited 2026-08-31) |
 | Prior audited provider | `0xF203A388e9E70F09ece38046a6D40a89cf896309` (delisted by the Router on 2026-08-31; historical evidence recorded under it verifies against the audited set) |
+| Router price ceilings | `1.9 / 5.5` USD per million prompt / completion tokens (active since 2026-09-10, when the Router raised `qwen3.7-max` to `1.75 / 5.25` on both audited providers); the launch epoch `0.9 / 2.6` stays in the audited set so earlier evidence keeps verifying |
 | Game | Standard chess, White vs Black, 5+0 blitz |
 | Entry | exactly `0.1 0G` staked to the ChallengePot before a prize game (verified + replay-locked at admission) |
 | Prize | `0.2 0G` per player win: the `0.1 0G` stake back plus a `0.1 0G` bounty |
